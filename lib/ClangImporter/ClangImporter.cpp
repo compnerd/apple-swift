@@ -464,11 +464,14 @@ getNormalInvocationArguments(std::vector<std::string> &invocationArgStrs,
       SHIMS_INCLUDE_FLAG, searchPathOpts.RuntimeResourcePath,
   });
 
-  if (LangOpts.EnableObjCInterop)
+  if (LangOpts.EnableObjCInterop) {
     invocationArgStrs.insert(invocationArgStrs.end(),
                              {"-x", "objective-c", "-std=gnu11", "-fobjc-arc"});
-  else
+    if (!triple.isOSDarwin())
+      invocationArgStrs.insert(invocationArgStrs.end(), {"-fobjc-runtime=ios"});
+  } else {
     invocationArgStrs.insert(invocationArgStrs.end(), {"-x", "c", "-std=gnu11"});
+  }
 
   // Get the version of this compiler and pass it to C/Objective-C declarations.
   auto V = version::Version::getCurrentCompilerVersion();
