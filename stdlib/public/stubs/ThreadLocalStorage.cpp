@@ -83,9 +83,7 @@ _swift_stdlib_threadLocalStorageGet(void) {
   static __swift_thread_key_t key;
 
   SWIFT_ONCE_F(token, [](void *) {
-    int result = SWIFT_THREAD_KEY_CREATE(&key, [](void *pointer) {
-      _stdlib_destroyTLS(pointer);
-    });
+    int result = SWIFT_THREAD_KEY_CREATE(&key, destroyTLS_CCAdjustmentThunk);
     if (result != 0)
       swift::fatalError(0, "couldn't create pthread key for stdlib TLS: %s\n",
                         std::strerror(result));
