@@ -1,4 +1,4 @@
-#===--- CMakeLists.txt - Build the core standard library -----------------===#
+#===----------------------------------------------------------------------===#
 #
 # This source file is part of the Swift.org open source project
 #
@@ -10,20 +10,39 @@
 #
 #===----------------------------------------------------------------------===#
 
-# The list of sources without which it's impossible to build a core
-# standard library.  Try to add new standard library sources to
-# SWIFTLIB_SOURCES, below, rather than SWIFTLIB_ESSENTIAL, if
-# possible, to improve layering.  Check that you got it right by
-# configuring with -DSWIFT_CHECK_ESSENTIAL_STDLIB=YES
-set(SWIFTLIB_ESSENTIAL
-  ### PLEASE KEEP THIS LIST IN ALPHABETICAL ORDER ###
-  # Some files can't be sorted alphabetically, see notes in the list below.
+find_package(Python2 COMPONENTS Interpreter REQUIRED)
+function(swift_gyb_target_sources target scope)
+  foreach(source ${ARGN})
+    get_filename_component(generated_source ${source} NAME_WLE)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${generated_source}
+      COMMAND
+        $<TARGET_FILE:Python2::Interpreter> ${PROJECT_SOURCE_DIR}/../utils/gyb -D CMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P} -o $<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source}.tmp ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different $<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source}.tmp $<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source}
+      COMMAND
+        ${CMAKE_COMMAND} -E remove $<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source}.tmp
+      DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/${source})
+    set_source_files_properties($<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source} PROPERTIES
+      GENERATED TRUE)
+    target_sources(${target} ${scope}
+      $<TARGET_PROPERTY:${target},BINARY_DIR>/${generated_source})
+  endforeach()
+endfunction()
+
+# Some files can't be sorted alphabetically, see notes in the list below.
+#
+# The list of sources without which it's impossible to build a core standard
+# library.  Try to add new standard library sources to `target_sources below if
+# possible, to improve layering.  Check that you got it right by configuring
+# with -DSWIFT_STDLIB_BUILD_ESSENTIAL_ONLY=YES
+add_library(swiftCore
   Algorithm.swift
   ArrayBody.swift
   ArrayBuffer.swift
   ArrayBufferProtocol.swift
   ArrayCast.swift
-  Array.swift
+  Array.swift # ORDER DEPENDENCY:
   ArrayShared.swift
   ArraySlice.swift
   ArrayType.swift
@@ -46,12 +65,12 @@ set(SWIFTLIB_ESSENTIAL
   Comparable.swift
   CompilerProtocols.swift
   ContiguousArray.swift
-  ContiguouslyStored.swift
-  ClosedRange.swift
   ContiguousArrayBuffer.swift
+  ContiguouslyStored.swift
   CString.swift
   CTypes.swift
   DebuggerSupport.swift
+  ClosedRange.swift
   Dictionary.swift
   DictionaryBridging.swift
   DictionaryBuilder.swift
@@ -70,10 +89,7 @@ set(SWIFTLIB_ESSENTIAL
   Flatten.swift
   FloatingPoint.swift
   Hashable.swift
-  # WORKAROUND: This file name is not sorted alphabetically in the list because
-  # if we do so, the compiler crashes.
-  AnyHashable.swift
-  # END WORKAROUND
+  AnyHashable.swift # ORDER DEPENDENCY:
   Hasher.swift
   Hashing.swift
   HashTable.swift
@@ -93,6 +109,7 @@ set(SWIFTLIB_ESSENTIAL
   ManagedBuffer.swift
   Map.swift
   MemoryLayout.swift
+  MigrationSupport.swift
   UnicodeScalar.swift # ORDER DEPENDENCY: Must precede Mirrors.swift
   Mirrors.swift
   Misc.swift
@@ -119,7 +136,6 @@ set(SWIFTLIB_ESSENTIAL
   Reverse.swift
   Runtime.swift
   RuntimeFunctionCounters.swift
-  SipHash.swift
   Sequence.swift
   SequenceAlgorithms.swift
   Set.swift
@@ -132,6 +148,7 @@ set(SWIFTLIB_ESSENTIAL
   SetVariant.swift
   ShadowProtocols.swift
   Shims.swift
+  SipHash.swift
   Slice.swift
   SmallString.swift
   Sort.swift
@@ -146,15 +163,15 @@ set(SWIFTLIB_ESSENTIAL
   StringComparison.swift
   StringCreate.swift
   StringGuts.swift
-  StringGutsSlice.swift
   StringGutsRangeReplaceable.swift
-  StringObject.swift
-  StringProtocol.swift
+  StringGutsSlice.swift
   StringIndex.swift
   StringIndexConversions.swift
   StringInterpolation.swift
   StringLegacy.swift
   StringNormalization.swift
+  StringObject.swift
+  StringProtocol.swift
   StringRangeReplaceableCollection.swift
   StringStorage.swift
   StringStorageBridge.swift
@@ -162,8 +179,8 @@ set(SWIFTLIB_ESSENTIAL
   StringTesting.swift
   StringUnicodeScalarView.swift
   StringUTF16View.swift
-  StringUTF8View.swift
   StringUTF8Validation.swift
+  StringUTF8View.swift
   Substring.swift
   SwiftNativeNSArray.swift
   ThreadLocalStorage.swift
@@ -179,144 +196,54 @@ set(SWIFTLIB_ESSENTIAL
   UnmanagedString.swift
   UnsafePointer.swift
   UnsafeRawPointer.swift
-  UTFEncoding.swift
-  UTF8.swift
   UTF16.swift
-  UTF32.swift
-  Unicode.swift # ORDER DEPENDENCY: must follow new unicode support
   StringGraphemeBreaking.swift # ORDER DEPENDENCY: Must follow UTF16.swift
+  UTF32.swift
+  UTF8.swift
+  UTFEncoding.swift
+  Unicode.swift # ORDER DEPENDENCY: must follow new unicode support
   ValidUTF8Buffer.swift
-  WriteBackMutableSlice.swift
-  MigrationSupport.swift)
-
-set(SWIFTLIB_ESSENTIAL_GYB_SOURCES
+  WriteBackMutableSlice.swift)
+swift_gyb_target_sources(swiftCore PRIVATE
   AtomicInt.swift.gyb
   FloatingPointParsing.swift.gyb
   FloatingPointTypes.swift.gyb
   IntegerTypes.swift.gyb
   UnsafeBufferPointer.swift.gyb
-  UnsafeRawBufferPointer.swift.gyb
-  )
-
-# The complete list of sources in the core standard library.  Includes
-# all the essential sources listed above.
-set(SWIFTLIB_SOURCES
-  ${SWIFTLIB_ESSENTIAL}
-  ### PLEASE KEEP THIS LIST IN ALPHABETICAL ORDER ###
-  Availability.swift
-  CollectionDifference.swift
-  CollectionOfOne.swift
-  Diffing.swift
-  Mirror.swift
-  PlaygroundDisplay.swift
-  CommandLine.swift
-  SliceBuffer.swift
-  SIMDVector.swift
-  UnfoldSequence.swift
-  VarArgs.swift
-  Zip.swift
-  "${SWIFT_SOURCE_DIR}/stdlib/linker-support/magic-symbols-for-install-name.c"
-  )
-
-set(SWIFTLIB_GYB_SOURCES
-  ${SWIFTLIB_ESSENTIAL_GYB_SOURCES}
-  SIMDVectorTypes.swift.gyb
-  Tuple.swift.gyb
-  )
-set(GROUP_INFO_JSON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/GroupInfo.json)
-set(swift_core_link_flags "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}")
-set(swift_core_framework_depends)
-set(swift_core_private_link_libraries)
-set(swift_stdlib_compile_flags "${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}")
-if(SWIFT_PRIMARY_VARIANT_SDK IN_LIST SWIFT_APPLE_PLATFORMS)
-  list(APPEND swift_core_link_flags "-all_load")
-  list(APPEND swift_core_private_link_libraries icucore)
-else()
-  # With the GNU linker the equivalent of -all_load is to tell the linker
-  # --whole-archive before the archive and --no-whole-archive after (without
-  # the second, it causes errors when the system libraries are told to
-  # include everything). The best way to get it in there, according to the
-  # documentation, is to put the flags in the target_link_libraries setting.
-
-  # TODO: However, for the moment this actually makes things explode with an
-  # incomplete runtime. This should be turned back on when more of the porting
-  # effort has been completed.
-  #set(LINK_FLAGS
-  #  -Wl,--whole-archive swiftRuntime -Wl,--no-whole-archive)
-  if("${SWIFT_PATH_TO_LIBICU_BUILD}" STREQUAL "")
-    list(APPEND swift_core_private_link_libraries
-      ${SWIFT_${SWIFT_PRIMARY_VARIANT_SDK}_${SWIFT_PRIMARY_VARIANT_ARCH}_ICU_UC}
-      ${SWIFT_${SWIFT_PRIMARY_VARIANT_SDK}_${SWIFT_PRIMARY_VARIANT_ARCH}_ICU_I18N})
-  else()
-    list(APPEND swift_core_private_link_libraries -licui18nswift -licuucswift -licudataswift)
-  endif()
+  UnsafeRawBufferPointer.swift.gyb)
+if(NOT SWIFT_STDLIB_BUILD_ESSENTIAL_ONLY)
+  target_sources(swiftCore PRIVATE
+    Availability.swift
+    CollectionDifference.swift
+    CollectionOfOne.swift
+    Diffing.swift
+    Mirror.swift
+    PlaygroundDisplay.swift
+    CommandLine.swift
+    SliceBuffer.swift
+    SIMDVector.swift
+    UnfoldSequence.swift
+    VarArgs.swift
+    Zip.swift)
+  swift_gyb_target_sources(swiftCore PRIVATE
+    SIMDVectorTypes.swift.gyb
+    Tuple.swift.gyb)
 endif()
-
-if(SWIFT_PRIMARY_VARIANT_SDK STREQUAL ANDROID)
-  # workaround for libatomic needing to be after object files for swiftCore.so
-  list(APPEND swift_core_private_link_libraries atomic)
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL CYGWIN)
-  # TODO(compnerd) cache this variable to permit re-configuration
-  execute_process(COMMAND "cygpath" "-u" "$ENV{SYSTEMROOT}" OUTPUT_VARIABLE ENV_SYSTEMROOT)
-  list(APPEND swift_core_private_link_libraries "${ENV_SYSTEMROOT}/system32/psapi.dll")
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL FREEBSD)
-  find_library(EXECINFO_LIBRARY execinfo)
-  list(APPEND swift_core_private_link_libraries ${EXECINFO_LIBRARY})
-  # workaround for libatomic needing to be after object files for swiftCore.so
-  list(APPEND swift_core_private_link_libraries
-    ${SWIFTLIB_DIR}/clang/lib/freebsd/libclang_rt.builtins-${SWIFT_PRIMARY_VARIANT_ARCH}.a)
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL LINUX)
-  if(SWIFT_BUILD_STATIC_STDLIB)
-    list(APPEND swift_core_private_link_libraries swiftImageInspectionShared)
-  endif()
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL WINDOWS)
-  list(APPEND swift_core_private_link_libraries shell32;DbgHelp)
-endif()
-
-option(SWIFT_CHECK_ESSENTIAL_STDLIB
-    "Check core standard library layering by linking its essential subset"
-    FALSE)
-
-if(SWIFT_STDLIB_SIL_DEBUGGING)
-  list(APPEND swift_stdlib_compile_flags "-Xfrontend" "-gsil")
-endif()
-
-list(APPEND swift_stdlib_compile_flags "-Xllvm" "-sil-inline-generics")
-list(APPEND swift_stdlib_compile_flags "-Xllvm" "-sil-partial-specialization")
-if(SWIFT_STDLIB_ENABLE_STDLIBCORE_EXCLUSIVITY_CHECKING)
-  list(APPEND swift_stdlib_compile_flags "-enforce-exclusivity=checked")
-endif()
-
-if(SWIFT_CHECK_ESSENTIAL_STDLIB)
-  add_swift_target_library(swift_stdlib_essential ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB IS_STDLIB_CORE
-      INSTALL_IN_COMPONENT never_install
-      ${SWIFTLIB_ESSENTIAL}
-      GYB_SOURCES
-        ${SWIFTLIB_ESSENTIAL_GYB_SOURCES})
-  target_link_libraries(swift_stdlib_essential ${RUNTIME_DEPENDENCY})
-endif()
-
-add_swift_target_library(swiftCore
-                  ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB IS_STDLIB_CORE
-                    ${SWIFTLIB_SOURCES}
-                  GYB_SOURCES
-                    ${SWIFTLIB_GYB_SOURCES}
-                  # The copy_shim_headers target dependency is required to let the
-                  # build system know that there's a rule to produce the shims
-                  # directory, but is not sufficient to cause the object file to be rebuilt
-                  # when the shim header changes.  Therefore, we pass both the target
-                  # and the generated directory as dependencies.
-                  FILE_DEPENDS
-                    copy_shim_headers "${SWIFTLIB_DIR}/shims" ${GROUP_INFO_JSON_FILE}
-                  SWIFT_COMPILE_FLAGS
-                    ${swift_stdlib_compile_flags} -Xcc -DswiftCore_EXPORTS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-                  LINK_FLAGS
-                    ${swift_core_link_flags}
-                  PRIVATE_LINK_LIBRARIES
-                    ${swift_core_private_link_libraries}
-                  INCORPORATE_OBJECT_LIBRARIES
-                    swiftRuntime swiftStdlibStubs
-                  FRAMEWORK_DEPENDS
-                    ${swift_core_framework_depends}
-                  INSTALL_IN_COMPONENT
-                    stdlib)
+target_compile_options(swiftCore PRIVATE
+  -parse-stdlib
+  "SHELL:-Xcc -DswiftCore_EXPORTS"
+  "SHELL:-Xllvm -sil-inline-generics"
+  "SHELL:-Xllvm -sil-partial-specialization"
+  "SHELL:$<$<BOOL:${SWIFT_STDLIB_ENABLE_SIL_DEBUGGING}>:-Xfrontend -gsil>"
+  "SHELL:$<$<BOOL:${SWIFT_STDLIB_ENABLE_STDLIBCORE_EXCLUSIVITY_CHECKING}>:-enforce-exclusivity=checked>")
+target_link_libraries(swiftCore PRIVATE
+  $<$<PLATFORM_ID:Cygwin>:psapi>
+  $<$<PLATFORM_ID:Darwin>:darwin-linker-support>
+  $<$<PLATFORM_ID:Windows>:DbgHelp>
+  $<$<PLATFORM_ID:Windows>:shell32>
+  $<$<NOT:$<PLATFORM_ID:Darwin>>:ICU::i18n>
+  $<$<NOT:$<PLATFORM_ID:Darwin>>:ICU::uc>
+  swiftStubs
+  swiftRuntime)
+target_link_options(swiftCore PRIVATE
+  "SHELL:$<PLATFORM_ID:Darwin>:-all_load icucore>")
