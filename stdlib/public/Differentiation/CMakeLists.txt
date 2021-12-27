@@ -10,36 +10,25 @@
 #
 #===----------------------------------------------------------------------===#
 
-add_swift_target_library(swift_Differentiation ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
+add_library(_Differentiation-install_name OBJECT
+  ${PROJECT_SOURCE_DIR}/linker-support/magic-symbols-for-install-name.c)
+
+add_library(swift_Differentiation
   Differentiable.swift
   DifferentialOperators.swift
   DifferentiationUtilities.swift
   AnyDifferentiable.swift
   ArrayDifferentiation.swift
-  OptionalDifferentiation.swift
-
-  "${SWIFT_SOURCE_DIR}/stdlib/linker-support/magic-symbols-for-install-name.c"
-
-  GYB_SOURCES
-    FloatingPointDifferentiation.swift.gyb
-    TgmathDerivatives.swift.gyb
-    SIMDDifferentiation.swift.gyb
-
-  SWIFT_MODULE_DEPENDS_OSX Darwin
-  SWIFT_MODULE_DEPENDS_IOS Darwin
-  SWIFT_MODULE_DEPENDS_TVOS Darwin
-  SWIFT_MODULE_DEPENDS_WATCHOS Darwin
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT
-
-  C_COMPILE_FLAGS
-    -Dswift_Differentiation_EXPORTS
-  SWIFT_COMPILE_FLAGS
-    ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-    -parse-stdlib
-  LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
-  INSTALL_IN_COMPONENT stdlib)
+  OptionalDifferentiation.swift)
+swift_gyb_target_sources(swift_Differentiation PRIVATE
+  FloatingPointDifferentiation.swift.gyb
+  TgmathDerivatives.swift.gyb
+  SIMDDifferentiation.swift.gyb)
+set_target_properties(swift_Differentiation PROPERTIES
+  Swift_MODULE_NAME _Differentiation)
+target_compile_options(swift_Differentiation PRIVATE
+  -parse-stdlib)
+target_link_libraries(swift_Differentiation PRIVATE
+  $<TARGET_OBJECTS:_Differentiation-install_name>)
+target_link_libraries(swift_Differentiation PUBLIC
+  swiftCore)

@@ -1,23 +1,12 @@
-add_swift_target_library(swiftSwiftPrivateThreadExtras ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
-  # This file should be listed the first.  Module name is inferred from the
-  # filename.
+
+add_library(SwiftPrivateThreadExtras-install_name OBJECT
+  ${PROJECT_SOURCE_DIR}/linker-support/magic-symbols-for-install-name.c)
+target_compile_definitions(SwiftPrivateThreadExtras-install_name PRIVATE
+  SwiftPrivateThreadExtras_EXPORTS
+  SWIFT_TARGET_LIBRARY_NAME=SwiftPrivateThreadExtras)
+
+add_library(SwiftPrivateThreadExtras
   SwiftPrivateThreadExtras.swift
-  ThreadBarriers.swift
-
-  "${SWIFT_SOURCE_DIR}/stdlib/linker-support/magic-symbols-for-install-name.c"
-
-  SWIFT_MODULE_DEPENDS_IOS Darwin
-  SWIFT_MODULE_DEPENDS_OSX Darwin
-  SWIFT_MODULE_DEPENDS_TVOS Darwin
-  SWIFT_MODULE_DEPENDS_WATCHOS Darwin
-  SWIFT_MODULE_DEPENDS_FREESTANDING "${SWIFT_FREESTANDING_TEST_DEPENDENCIES}"
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT WinSDK
-  SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-  INSTALL_IN_COMPONENT stdlib-experimental
-  DARWIN_INSTALL_NAME_DIR "${SWIFT_DARWIN_STDLIB_PRIVATE_INSTALL_NAME_DIR}")
-
+  ThreadBarriers.swift)
+target_link_libraries(SwiftPrivateThreadExtras PRIVATE
+  $<TARGET_OBJECTS:SwiftPrivateThreadExtras-install_name>)

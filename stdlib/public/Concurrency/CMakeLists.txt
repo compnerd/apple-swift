@@ -10,125 +10,85 @@
 #
 #===----------------------------------------------------------------------===#
 
-if(NOT swift_concurrency_extra_sources)
-  set(swift_concurrency_extra_sources)
-endif()
-
-if(NOT swift_concurrency_install_component)
-  set(swift_concurrency_install_component stdlib)
-endif()
-
-set(SWIFT_RUNTIME_CONCURRENCY_C_FLAGS)
-set(SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS)
-
-if("${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "dispatch")
-  if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    include_directories(AFTER
-                          ${SWIFT_PATH_TO_LIBDISPATCH_SOURCE})
-
-    # FIXME: we can't rely on libdispatch having been built for the
-    # target at this point in the process.  Currently, we're relying
-    # on soft-linking.
-    list(APPEND swift_concurrency_link_libraries
-      dispatch)
-  endif()
-elseif("${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "singlethreaded" OR
-       "${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "hooked")
-  list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS
-    "-DSWIFT_CONCURRENCY_ENABLE_DISPATCH=0")
-else()
-  message(FATAL_ERROR "Invalid value for SWIFT_CONCURRENCY_GLOBAL_EXECUTOR (\"${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}\").")
-endif()
-
-
-if(NOT SWIFT_CONCURRENCY_USES_DISPATCH)
-
-endif()
-
-if(NOT swift_concurrency_async_fp_mode)
-  set(swift_concurrency_async_fp_mode "always")
-endif()
-
-# Don't emit extended frame info on platforms other than darwin, system
-# backtracer and system debugger are unlikely to support it.
-if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS
-    "-fswift-async-fp=${swift_concurrency_async_fp_mode}")
-  list(APPEND SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS
-    "-Xfrontend"
-    "-swift-async-frame-pointer=${swift_concurrency_async_fp_mode}")
-else()
-  list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS "-fswift-async-fp=never")
-endif()
-
-add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
-  ../CompatibilityOverride/CompatibilityOverride.cpp
+add_library(_ConcurrencyRuntime OBJECT
   Actor.cpp
-  Actor.swift
   AsyncLet.cpp
-  AsyncLet.swift
-  CheckedContinuation.swift
-  GlobalExecutor.cpp
-  Errors.swift
+  AsyncStream.cpp
   Error.cpp
-  Executor.swift
+  GlobalExecutor.cpp
+  Mutex.cpp
+  Task.cpp
+  TaskAlloc.cpp
+  TaskGroup.cpp
+  TaskLocal.cpp
+  TaskStatus.cpp
+  ThreadSanitizer.cpp)
+target_sources(_ConcurrencyRuntime PRIVATE
+  ${PROJECT_SOURCE_DIR}/linker-support/magic-symbols-for-install-name.c
+  ${PROJECT_SOURCE_DIR}/public/CompatibilityOverride/CompatibilityOverride.cpp)
+set_source_files_properties(TaskAlloc.cpp PROPERTIES
+  COMPILE_OPTIONS -Wno-error=exit-time-destructors)
+set_source_files_properties(Task.cpp PROPERTIES
+  COMPILE_OPTIONS -Wno-error=global-constructors)
+target_compile_definitions(_ConcurrencyRuntime PRIVATE
+  swift_Concurrency_EXPORTS
+  SWIFT_TARGET_LIBRARY_NAME=swift_Concurrency
+  $<$<PLATFORM_ID:Windows>:_CRT_SECURE_NO_WARNINGS>
+  $<$<NOT:$<STREQUAL:${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR},dispatch>>:SWIFT_CONCURRENCY_ENABLE_DISPATCH=0>)
+target_compile_options(_ConcurrencyRuntime PRIVATE
+  $<$<PLATFORM_ID:Darwin>:-fswift-async-fp=always>
+  $<$<NOT:$<PLATFORM_ID:Darwin>>:-fswift-async-fp=never>)
+target_link_libraries(_ConcurrencyRuntime PUBLIC
+  $<$<AND:$<STREQUAL:${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR},dispatch>,$<NOT:$<PLATFORM_ID:Darwin>>>:dispatch>
+  swiftLLVMSupport)
+
+add_library(swift_Concurrency
+  Actor.swift
   AsyncCompactMapSequence.swift
   AsyncDropFirstSequence.swift
   AsyncDropWhileSequence.swift
   AsyncFilterSequence.swift
   AsyncFlatMapSequence.swift
   AsyncIteratorProtocol.swift
+  AsyncLet.swift
   AsyncMapSequence.swift
   AsyncPrefixSequence.swift
   AsyncPrefixWhileSequence.swift
   AsyncSequence.swift
+  AsyncStream.swift
+  AsyncStreamBuffer.swift
   AsyncThrowingCompactMapSequence.swift
   AsyncThrowingDropWhileSequence.swift
   AsyncThrowingFilterSequence.swift
   AsyncThrowingFlatMapSequence.swift
   AsyncThrowingMapSequence.swift
   AsyncThrowingPrefixWhileSequence.swift
+  AsyncThrowingStream.swift
+  CheckedContinuation.swift
+  Deque.swift
+  Errors.swift
+  Executor.swift
   GlobalActor.swift
   MainActor.swift
   PartialAsyncTask.swift
   SourceCompatibilityShims.swift
-  Task.cpp
   Task.swift
   TaskCancellation.swift
-  TaskAlloc.cpp
-  TaskStatus.cpp
-  TaskGroup.cpp
   TaskGroup.swift
-  TaskLocal.cpp
   TaskLocal.swift
-  TaskSleep.swift
-  ThreadSanitizer.cpp
-  Mutex.cpp
-  AsyncStreamBuffer.swift
-  AsyncStream.swift
-  AsyncThrowingStream.swift
-  AsyncStream.cpp
-  Deque.swift
-  ${swift_concurrency_extra_sources}
-  linker-support/magic-symbols-for-install-name.c
-
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT
-
-  LINK_LIBRARIES ${swift_concurrency_link_libraries}
-
-  C_COMPILE_FLAGS
-    -Dswift_Concurrency_EXPORTS ${SWIFT_RUNTIME_CONCURRENCY_C_FLAGS}
-    -I${SWIFT_SOURCE_DIR}/stdlib/include
-  SWIFT_COMPILE_FLAGS
-    ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-    -parse-stdlib
-    -Xfrontend -enable-experimental-concurrency
-    ${SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS}
-  ${swift_concurrency_options}
-  INSTALL_IN_COMPONENT ${swift_concurrency_install_component}
-)
+  TaskSleep.swift)
+set_target_properties(swift_Concurrency PROPERTIES
+  Swift_MODULE_NAME _Concurrency)
+target_compile_options(swift_Concurrency PRIVATE
+  -parse-stdlib
+  # Don't emit extended frame info on platforms other than darwin, system
+  # backtracer and system debugger are unlikely to support it.
+  "SHELL:$<$<PLATFORM_ID:Darwin>:-Xfrontend -swift-async-frame-pointer=always>")
+target_compile_options(swift_Concurrency PUBLIC
+  "SHELL:-Xfrontend -enable-experimental-concurrency")
+target_link_libraries(swift_Concurrency PRIVATE
+  $<TARGET_OBJECTS:_ConcurrencyRuntime>)
+target_link_libraries(swift_Concurrency PUBLIC
+  $<$<AND:$<STREQUAL:${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR},dispatch>,$<NOT:$<PLATFORM_ID:Darwin>>>:dispatch>
+  swiftLLVMSupport
+  swiftCore)

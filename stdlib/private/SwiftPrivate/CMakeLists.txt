@@ -1,22 +1,18 @@
-set(swift_swiftprivate_compile_flags
-    "-parse-stdlib"
-    "-Xfrontend" "-disable-access-control")
 
-add_swift_target_library(swiftSwiftPrivate ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
-  # This file should be listed the first.  Module name is inferred from the
-  # filename.
+add_library(SwiftPrivate-install_name OBJECT
+  ${PROJECT_SOURCE_DIR}/linker-support/magic-symbols-for-install-name.c)
+target_compile_definitions(SwiftPrivate-install_name PRIVATE
+  SwiftPrivate_EXPORTS
+  SWIFT_TARGET_LIBRARY_NAME=SwiftPrivate)
+
+add_library(SwiftPrivate
   SwiftPrivate.swift
-
   IO.swift
-  ShardedAtomicCounter.swift
-
-  "${SWIFT_SOURCE_DIR}/stdlib/linker-support/magic-symbols-for-install-name.c"
-
-  GYB_SOURCES
-    AtomicInt.swift.gyb
-
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT WinSDK
-  SWIFT_COMPILE_FLAGS ${swift_swiftprivate_compile_flags} ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-  INSTALL_IN_COMPONENT stdlib-experimental
-  DARWIN_INSTALL_NAME_DIR "${SWIFT_DARWIN_STDLIB_PRIVATE_INSTALL_NAME_DIR}")
-
+  ShardedAtomicCounter.swift)
+swift_gyb_target_sources(SwiftPrivate PRIVATE
+  AtomicInt.swift.gyb)
+target_compile_options(SwiftPrivate PRIVATE
+  -parse-stdlib
+  "SHELL:-Xfrontend -disable-access-control")
+target_link_libraries(SwiftPrivate PRIVATE
+  $<TARGET_OBJECTS:SwiftPrivate-install_name>)

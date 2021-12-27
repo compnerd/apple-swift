@@ -57,7 +57,7 @@ public enum ProcessTerminationStatus : CustomStringConvertible {
   }
 }
 
-#if !SWIFT_STDLIB_HAS_COMMANDLINE
+#if SWIFT_STDLIB_HAS_COMMANDLINE
 @_silgen_name("_swift_stdlib_getUnsafeArgvArgc")
 internal func _swift_stdlib_getUnsafeArgvArgc(_: UnsafeMutablePointer<Int32>) -> UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>
 
@@ -68,7 +68,7 @@ public enum CommandLine {
     return (0 ..< Int(argc)).map { String(cString: unsafeArgv[$0]!) }
   }()
 }
-#endif // !SWIFT_STDLIB_HAS_COMMANDLINE
+#endif // SWIFT_STDLIB_HAS_COMMANDLINE
 
 #if os(Windows)
 public func spawnChild(_ args: [String])

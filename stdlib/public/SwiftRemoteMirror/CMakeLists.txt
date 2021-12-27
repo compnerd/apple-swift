@@ -1,17 +1,15 @@
-# libswiftRemoteMirror.dylib should not have runtime dependencies; it's
-# always built as a shared library.
-if(SWIFT_BUILD_DYNAMIC_STDLIB)
-  add_swift_target_library(swiftRemoteMirror
-                           SHARED DONT_EMBED_BITCODE NOSWIFTRT
-                           SwiftRemoteMirror.cpp
-                           LINK_LIBRARIES
-                             swiftReflection
-                           C_COMPILE_FLAGS
-                             ${SWIFT_RUNTIME_CXX_FLAGS} -DswiftRemoteMirror_EXPORTS -I${LLVM_MAIN_INCLUDE_DIR}
-                           LINK_FLAGS
-                             ${SWIFT_RUNTIME_LINK_FLAGS}
-                           INCORPORATE_OBJECT_LIBRARIES swiftLLVMSupport
-                           SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-                           INSTALL_IN_COMPONENT
-                             swift-remote-mirror)
-endif()
+# {(lib)?}swiftRemoteMirror.{(dll|dylib|so)} should not have runtime
+# dependencies; it's always built as a shared library.
+add_library(swiftRemoteMirror SHARED
+  SwiftRemoteMirror.cpp)
+target_compile_definitions(swiftRemoteMirror PRIVATE
+  SWIFT_INLINE_NAMESPACE=__runtime
+  $<$<PLATFORM_ID:Windows>:_CRT_SECURE_NO_WARNINGS>
+  $<$<PLATFORM_ID:Windows>:_CRT_NONSTDC_NO_WARNINGS>)
+target_link_libraries(swiftRemoteMirror PRIVATE
+  swiftReflection
+  )  # LLVMBinaryFormat)
+# TODO(compnerd) use LLVMBinaryFormat and drop the include paths.
+target_include_directories(swiftRemoteMirror PRIVATE
+  ${LLVM_MAIN_INCLUDE_DIR}
+  ${LLVM_INCLUDE_DIR})

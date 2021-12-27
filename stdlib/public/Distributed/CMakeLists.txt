@@ -10,33 +10,23 @@
 #
 #===----------------------------------------------------------------------===#
 
-set(swift_distributed_link_libraries
-  swiftCore)
+add_library(_Distributed-install_name OBJECT
+  ${PROJECT_SOURCE_DIR}/linker-support/magic-symbols-for-install-name.c)
 
-
-add_swift_target_library(swift_Distributed ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
+add_library(swift_Distributed
   AssertDistributed.swift
   DistributedActor.swift
   DistributedActorSystem.swift
-  HeterogeneousBuffer.swift
-
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT
-
-  LINK_LIBRARIES ${swift_distributed_link_libraries}
-
-  C_COMPILE_FLAGS
-    -Dswift_Distributed_EXPORTS
-  SWIFT_COMPILE_FLAGS
-    ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-    -parse-stdlib
-    -Xfrontend -enable-experimental-distributed
-  LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
-
-  SWIFT_MODULE_DEPENDS _Concurrency
-  INSTALL_IN_COMPONENT stdlib
-)
+  HeterogeneousBuffer.swift)
+set_target_properties(swift_Distributed PROPERTIES
+  Swift_MODULE_NAME _Distributed)
+target_compile_options(swift_Distributed PRIVATE
+  -parse-stdlib
+  # FIXME(compnerd) is this needed for the Shims?
+  "SHELL:-Xcc -Dswift_Distributed_EXPORTS")
+target_compile_options(swift_Distributed PUBLIC
+  "SHELL:-Xfrontend -enable-experimental-distributed")
+target_link_libraries(swift_Distributed PRIVATE
+  $<TARGET_OBJECTS:_Distributed-install_name>)
+target_link_libraries(swift_Distributed PUBLIC
+  swiftCore)

@@ -1,8 +1,5 @@
-add_swift_target_library(swiftCommandLineSupport
-  STATIC DONT_EMBED_BITCODE NOSWIFTRT
-  CommandLine.cpp
-  C_COMPILE_FLAGS ${SWIFT_RUNTIME_CXX_FLAGS}
-  LINK_FLAGS ${SWIFT_RUNTIME_LINK_FLAGS}
-  SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
-  INSTALL_IN_COMPONENT never_install
-  )
+add_library(CommandLineSupport STATIC
+  CommandLine.cpp)
+target_include_directories(CommandLineSupport PRIVATE
+  ${SWIFT_SOURCE_DIR}/include
+  ${SWIFT_BUILD_DIR}/include)

@@ -86,47 +86,9 @@ option(SWIFT_BUILD_REMOTE_MIRROR
     "Build the Swift Remote Mirror Library"
     TRUE)
 
-option(SWIFT_BUILD_DYNAMIC_STDLIB
-    "Build dynamic variants of the Swift standard library"
-    TRUE)
-
-option(SWIFT_BUILD_STATIC_STDLIB
-    "Build static variants of the Swift standard library"
-    FALSE)
-    
-option(SWIFT_STDLIB_STATIC_PRINT
-    "Build compile-time evaluated vprintf()"
-    FALSE)
-
-option(SWIFT_BUILD_DYNAMIC_SDK_OVERLAY
-    "Build dynamic variants of the Swift SDK overlay"
-    TRUE)
-
-option(SWIFT_BUILD_STATIC_SDK_OVERLAY
-    "Build static variants of the Swift SDK overlay"
-    FALSE)
-
-option(SWIFT_BUILD_STDLIB_EXTRA_TOOLCHAIN_CONTENT
-    "If not building stdlib, controls whether to build 'stdlib/toolchain' content"
-    TRUE)
-
-# In many cases, the CMake build system needs to determine whether to include
-# a directory, or perform other actions, based on whether the stdlib or SDK is
-# being built at all -- statically or dynamically. Please note that these
-# flags are not related to the deprecated build-script-impl arguments
-# 'build-swift-stdlib' and 'build-swift-sdk-overlay'. These are not flags that
-# the build script should be able to set.
-if(SWIFT_BUILD_DYNAMIC_STDLIB OR SWIFT_BUILD_STATIC_STDLIB)
-  set(SWIFT_BUILD_STDLIB TRUE)
-else()
-  set(SWIFT_BUILD_STDLIB FALSE)
-endif()
-
-if(SWIFT_BUILD_DYNAMIC_SDK_OVERLAY OR SWIFT_BUILD_STATIC_SDK_OVERLAY)
-  set(SWIFT_BUILD_SDK_OVERLAY TRUE)
-else()
-  set(SWIFT_BUILD_SDK_OVERLAY FALSE)
-endif()
+# option(SWIFT_BUILD_STDLIB_EXTRA_TOOLCHAIN_CONTENT
+#     "If not building stdlib, controls whether to build 'stdlib/toolchain' content"
+#     TRUE)
 
 option(SWIFT_BUILD_PERF_TESTSUITE
     "Create in-tree targets for building swift performance benchmarks."
@@ -333,10 +295,6 @@ option(SWIFT_EMBED_BITCODE_SECTION_HIDE_SYMBOLS
   "If non-empty, when embedding the LLVM bitcode binary sections into the relevant binaries, pass in -bitcode_hide_symbols. Does nothing if SWIFT_EMBED_BITCODE_SECTION is set to false."
   FALSE)
 
-option(SWIFT_RUNTIME_CRASH_REPORTER_CLIENT
-    "Whether to enable CrashReporter integration"
-    FALSE)
-
 set(SWIFT_DARWIN_XCRUN_TOOLCHAIN "XcodeDefault" CACHE STRING
     "The name of the toolchain to pass to 'xcrun'")
 
@@ -371,20 +329,6 @@ option(SWIFT_SIL_VERIFY_ALL
 
 option(SWIFT_EMIT_SORTED_SIL_OUTPUT
     "Sort SIL output by name to enable diffing of output"
-    FALSE)
-
-if(SWIFT_STDLIB_ASSERTIONS)
-  set(SWIFT_RUNTIME_CLOBBER_FREED_OBJECTS_default TRUE)
-else()
-  set(SWIFT_RUNTIME_CLOBBER_FREED_OBJECTS_default FALSE)
-endif()
-
-option(SWIFT_RUNTIME_CLOBBER_FREED_OBJECTS
-    "Overwrite memory for deallocated Swift objects"
-    "${SWIFT_RUNTIME_CLOBBER_FREED_OBJECTS_default}")
-
-option(SWIFT_STDLIB_SIL_DEBUGGING
-    "Compile the Swift standard library with -sil-based-debuginfo to enable debugging and profiling on SIL level"
     FALSE)
 
 option(SWIFT_CHECK_INCREMENTAL_COMPILATION
@@ -424,37 +368,9 @@ set(SWIFT_EXPERIMENTAL_EXTRA_REGEXP_FLAGS "" CACHE STRING
 set(SWIFT_EXPERIMENTAL_EXTRA_NEGATIVE_REGEXP_FLAGS "" CACHE STRING
     "A list of [module_regexp1;flags1;module_regexp2;flags2,...] which can be used to apply specific flags to modules that do not match a cmake regexp. It always applies the first regexp that does not match. The reason this is necessary is that cmake does not provide negative matches in the regex. Instead you have to use NOT in the if statement requiring a separate variable.")
 
-option(SWIFT_RUNTIME_ENABLE_LEAK_CHECKER
-  "Should the runtime be built with support for non-thread-safe leak detecting entrypoints"
-  FALSE)
-
-option(SWIFT_ENABLE_RUNTIME_FUNCTION_COUNTERS
-  "Enable runtime function counters and expose the API."
-  FALSE)
-
-option(SWIFT_ENABLE_STDLIBCORE_EXCLUSIVITY_CHECKING
-  "Build stdlibCore with exclusivity checking enabled"
-  FALSE)
-
-option(SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING
-  "Enable experimental Swift differentiable programming features"
-  FALSE)
-
 option(SWIFT_IMPLICIT_CONCURRENCY_IMPORT
   "Implicitly import the Swift concurrency module"
   TRUE)
-
-option(SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY
-  "Enable build of the Swift concurrency module"
-  FALSE)
-
-option(SWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED
-  "Enable experimental distributed actors and functions"
-  FALSE)
-
-option(SWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING
-  "Enable experimental string processing"
-  FALSE)
 
 option(SWIFT_ENABLE_DISPATCH
   "Enable use of libdispatch"
@@ -507,13 +423,6 @@ if(CMAKE_C_COMPILER_ID MATCHES Clang)
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=c++98-compat-extra-semi>)
 endif()
 
-# Use dispatch as the system scheduler by default.
-# For convenience, we set this to false when concurrency is disabled.
-set(SWIFT_CONCURRENCY_USES_DISPATCH FALSE)
-if(SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY AND "${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "dispatch")
-  set(SWIFT_CONCURRENCY_USES_DISPATCH TRUE)
-endif()
-
 set(SWIFT_BUILD_HOST_DISPATCH FALSE)
 if(SWIFT_ENABLE_DISPATCH AND NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   # Only build libdispatch for the host if the host tools are being built and
@@ -524,7 +433,7 @@ if(SWIFT_ENABLE_DISPATCH AND NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
   if(SWIFT_BUILD_HOST_DISPATCH OR SWIFT_CONCURRENCY_USES_DISPATCH)
     if(NOT EXISTS "${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}")
-      message(SEND_ERROR "SyntaxParserLib, SourceKit, and concurrency require libdispatch on non-Darwin hosts.  Please specify SWIFT_PATH_TO_LIBDISPATCH_SOURCE")
+      message(SEND_ERROR "SyntaxParserLib and SourceKit require libdispatch on non-Darwin hosts.  Please specify SWIFT_PATH_TO_LIBDISPATCH_SOURCE")
     endif()
   endif()
 endif()
@@ -1003,26 +912,6 @@ if(SWIFT_INCLUDE_TOOLS)
   message(STATUS "")
 else()
   message(STATUS "Not building host Swift tools")
-  message(STATUS "")
-endif()
-
-if(SWIFT_BUILD_STDLIB OR SWIFT_BUILD_SDK_OVERLAY)
-  message(STATUS "Building Swift standard library and overlays for SDKs: ${SWIFT_SDKS}")
-  message(STATUS "  Build type:       ${SWIFT_STDLIB_BUILD_TYPE}")
-  message(STATUS "  Assertions:       ${SWIFT_STDLIB_ASSERTIONS}")
-  message(STATUS "")
-
-  message(STATUS "Building Swift runtime with:")
-  message(STATUS "  Leak Detection Checker Entrypoints: ${SWIFT_RUNTIME_ENABLE_LEAK_CHECKER}")
-  message(STATUS "")
-
-  message(STATUS "Differentiable Programming Support: ${SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING}")
-  message(STATUS "Concurrency Support: ${SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY}")
-  message(STATUS "Distributed Support: ${SWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED}")
-  message(STATUS "String Processing Support: ${SWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING}")
-  message(STATUS "")
-else()
-  message(STATUS "Not building Swift standard library, SDK overlays, and runtime")
   message(STATUS "")
 endif()
 
