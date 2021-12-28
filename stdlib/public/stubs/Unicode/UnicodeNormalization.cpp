@@ -16,7 +16,7 @@
 #include "Common/NormalizationData.h"
 #endif
 
-#include "../SwiftShims/UnicodeData.h"
+#include "SwiftShims/UnicodeData.h"
 #include <limits>
 
 SWIFT_RUNTIME_STDLIB_INTERNAL

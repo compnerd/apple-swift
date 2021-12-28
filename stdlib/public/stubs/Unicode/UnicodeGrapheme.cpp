@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Common/GraphemeData.h"
-#include "../SwiftShims/UnicodeData.h"
+#include "SwiftShims/UnicodeData.h"
 
 SWIFT_RUNTIME_STDLIB_INTERNAL
 __swift_uint8_t _swift_stdlib_getGraphemeBreakProperty(__swift_uint32_t scalar) {
