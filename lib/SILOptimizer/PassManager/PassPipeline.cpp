@@ -129,30 +129,9 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   P.addNoReturnFolding();
   addDefiniteInitialization(P);
 
-  P.addAddressLowering();
-
-  P.addFlowIsolation();
-
-  // Automatic differentiation: canonicalize all differentiability witnesses
-  // and `differentiable_function` instructions.
-  P.addDifferentiation();
-
-  // Only run semantic arc opts if we are optimizing and if mandatory semantic
-  // arc opts is explicitly enabled.
-  //
-  // NOTE: Eventually this pass will be split into a mandatory/more aggressive
-  // pass. This will happen when OSSA is no longer eliminated before the
-  // optimizer pipeline is run implying we can put a pass that requires OSSA
-  // there.
-  const auto &Options = P.getOptions();
-  P.addClosureLifetimeFixup();
-
   //===---
   // Begin Ownership Optimizations
   //
-  // These happen after ClosureLifetimeFixup because they depend on the
-  // resolution of nonescaping closure lifetimes to correctly check the use
-  // of move-only values as captures in nonescaping closures as borrows.
 
   // Check noImplicitCopy and move only types for addresses.
   P.addMoveOnlyAddressChecker();
@@ -170,6 +149,24 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   //
   // End Ownership Optimizations
   //===---
+
+  P.addAddressLowering();
+
+  P.addFlowIsolation();
+
+  // Automatic differentiation: canonicalize all differentiability witnesses
+  // and `differentiable_function` instructions.
+  P.addDifferentiation();
+
+  // Only run semantic arc opts if we are optimizing and if mandatory semantic
+  // arc opts is explicitly enabled.
+  //
+  // NOTE: Eventually this pass will be split into a mandatory/more aggressive
+  // pass. This will happen when OSSA is no longer eliminated before the
+  // optimizer pipeline is run implying we can put a pass that requires OSSA
+  // there.
+  const auto &Options = P.getOptions();
+  P.addClosureLifetimeFixup();
 
 #ifndef NDEBUG
   // Add a verification pass to check our work when skipping
