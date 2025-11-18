@@ -89,7 +89,11 @@ ToolChain::getResponseFileInfo(const Compilation &C, const char *executablePath,
         context.getTemporaryFilePath("arguments", "resp");
     const char *responseFileArg =
         C.getArgs().MakeArgString(Twine("@") + responseFilePath);
-    return {{responseFilePath, responseFileArg}};
+#if LLVM_ON_WIN32
+    return {{responseFilePath, "--rsp-quoting=windows", responseFileArg}};
+#else
+    return {{responseFilePath, nullptr, responseFileArg}};
+#endif
   }
   return std::nullopt;
 }

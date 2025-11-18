@@ -270,6 +270,8 @@ public:
     /// The path to the response file that a job should use.
     const char *path;
 
+    const char *rspMode;
+
     /// The '@'-prefixed argument string that should be passed to the tool to
     /// use the response file.
     const char *argString;
