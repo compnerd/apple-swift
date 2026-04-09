@@ -2161,6 +2161,20 @@ ERROR(metatype_extension_non_protocol, none,
 ERROR(metatype_extension_instance_member, none,
       "instance members are not allowed in metatype extensions", ())
 
+// @COM
+ERROR(attr_com_requires_flag, none,
+      "'@COM' requires '-enable-experimental-com-interop'", ())
+ERROR(attr_com_invalid_guid, none,
+      "'%0' is not a valid GUID; expected format 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'", (StringRef))
+ERROR(attr_com_protocol_requires_iid, none,
+      "'@COM' on a protocol requires 'IID:' argument", ())
+ERROR(attr_com_protocol_unexpected_arg,none,
+      "'@COM' on a protocol must only have 'IID:'; '%0:' is not allowed", (StringRef))
+ERROR(attr_com_class_requires_clsid, none,
+      "'@COM' on a class must not have 'IID:'; use 'CLSID:' instead", ())
+ERROR(attr_com_class_unexpected_iid, none,
+      "'@COM' on a class must not have 'IID:'; use 'CLSID:' instead", ())
+
 // @_staticExclusiveOnly
 ERROR(attr_static_exclusive_only_disabled,none,
       "attribute requires '-enable-experimental feature StaticExclusiveOnly'", ())

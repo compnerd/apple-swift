@@ -918,6 +918,14 @@ BridgedBackDeployedAttr BridgedBackDeployedAttr_createParsed(
     swift::SourceRange range, swift::PlatformKind platform,
     BridgedVersionTuple cVersion);
 
+SWIFT_NAME("BridgedCOMAttr.createParsed(_:atLoc:range:iid:clsid:threadingModel:)")
+BridgedCOMAttr BridgedCOMAttr_createParsed(BridgedASTContext cContext,
+                                           swift::SourceLoc atLoc,
+                                           swift::SourceRange range,
+                                           BridgedStringRef cIID,
+                                           BridgedStringRef cCLSID,
+                                           swift::COMThreadingModel model);
+
 SWIFT_NAME("BridgedCDeclAttr.createParsed(_:atLoc:range:name:underscored:)")
 BridgedCDeclAttr BridgedCDeclAttr_createParsed(BridgedASTContext cContext,
                                                swift::SourceLoc atLoc,

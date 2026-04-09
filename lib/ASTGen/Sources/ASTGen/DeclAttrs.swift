@@ -136,6 +136,8 @@ extension ASTGenVisitor {
         return self.generateAvailableAttr(attribute: node, attrName: attrName).forEach { handle($0.asDeclAttribute) }
       case .BackDeployed:
         return self.generateBackDeployedAttr(attribute: node).forEach { handle($0.asDeclAttribute) }
+      case .COM:
+        return handle(self.generateCOMAttr(attribute: node)?.asDeclAttribute)
       case .CDecl:
         return handle(self.generateCDeclAttr(attribute: node)?.asDeclAttribute)
       case .Derivative:
@@ -553,6 +555,82 @@ extension ASTGenVisitor {
       result.append(attr)
     }
     return result
+  }
+
+  /// E.g.:
+  ///   ```
+  ///   @COM
+  ///   @COM(IID: "...")
+  ///   @COM(CLSID: "...")
+  ///   @COM(CLSID: "...", ThreadingModel: "...")
+  ///   ```
+  func generateCOMAttr(attribute node: AttributeSyntax) -> BridgedCOMAttr? {
+    let location = generateSourceLoc(node.atSign)
+    let range = generateAttrSourceRange(node)
+
+    if node.arguments == nil {
+      return .createParsed(ctx, atLoc: location, range: range,
+                           iid: "", clsid: BridgedStringRef(), threadingModel: .Apartment)
+    }
+
+    typealias Result = (iid: BridgedStringRef, clsid: BridgedStringRef, model: swift.COMThreadingModel)
+    guard let parsed: Result = generateWithLabeledExprListArguments(attribute: node, { arguments in
+      var iid: BridgedStringRef = ""
+      var clsid: BridgedStringRef = BridgedStringRef()
+      var model: swift.COMThreadingModel = .Apartment
+
+      for argument in arguments {
+        switch argument.label?.rawText {
+        case "IID":
+          guard let value = generateConsumingSimpleStringLiteralAttrOption(args: &arguments, label: "IID") else {
+            // TODO: Diagnose.
+            return nil
+          }
+          iid = value
+        case "CLSID":
+          guard let value = generateConsumingSimpleStringLiteralAttrOption(args: &arguments, label: "CLSID") else {
+            // TODO: Diagnose.
+            return nil
+          }
+          clsid = value
+        case "ThreadingModel":
+          // Consume the labeled argument manually.
+          arguments.removeFirst()
+
+          switch argument.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.rawText {
+          case .some("single"):
+            model = .Single
+          case .some("apartment"):
+            model = .Apartment
+          case .some("free"):
+            model = .Free
+          case .some("both"):
+            model = .Both
+          case .some("neutral"):
+            model = .Neutral
+          case .some("sta"):
+            model = .Apartment
+          case .some("mta"):
+            model = .Free
+          default:
+            // TODO: Diagnose.
+            return nil
+          }
+
+        default:
+          // TODO: Diagnose.
+          return nil
+        }
+      }
+
+      return (iid: iid, clsid: clsid, model: model)
+    }) else {
+      return nil
+    }
+
+    return .createParsed(ctx, atLoc: location, range: range,
+                         iid: parsed.iid, clsid: parsed.clsid,
+                         threadingModel: parsed.model)
   }
 
   /// E.g.:

@@ -292,6 +292,10 @@ protected:
     SWIFT_INLINE_BITFIELD(NonexhaustiveAttr, DeclAttribute, NumNonexhaustiveModeBits,
       mode : NumNonexhaustiveModeBits
     );
+
+    SWIFT_INLINE_BITFIELD(COMAttr, DeclAttribute, 3,
+      threadingModel: 3
+    );
   } Bits;
   // clang-format on
 
@@ -3709,6 +3713,61 @@ public:
   bool isEquivalent(const WarnAttr *other,
                     Decl *attachedTo) const {
     return Reason == other->Reason;
+  }
+};
+
+/// Threading model for a COM coclass, specified via `@COM(ThreadingModel:)`.
+/// Must match COMThreadingModel in the COM module.
+enum class COMThreadingModel : uint8_t {
+  Single = 0,   ///< Main STA thread only; corresponds to `@MainActor`.
+  Apartment,    ///< Single STA thread (default). `.sta` is an alias.
+  Free,         ///< Any thread, caller synchronised. `.mta` is an alias.
+  Both,         ///< STA or free, implementation must be thread safe.
+  Neutral,      ///< No thread switching (COM+).
+};
+
+/// Defines a @COM attribute, appertains to `protocol` and `class`.
+///
+/// On a `protocol`: `@COM(IID: "...")`
+///   Declares a COM interface with the given Interface ID.
+///
+/// On a `class`: `@COM(CLSID: "...", ThreadingModel: .apartment)`
+///   Declares a COM coclass with the given Class ID and optional threading
+///   model (defaults to `.apartment`).
+///
+/// The parser accepts the superset of arguments; sema validates that eh correct
+/// subset is present for the declaration kind.
+class COMAttr : public DeclAttribute {
+public:
+  /// The Interface ID (for protocols) or empty.
+  const StringRef IID;
+  /// The Class ID (for classes) or `std::nullopt` if not written.
+  const std::optional<StringRef> CLSID;
+
+  COMAttr(SourceLoc Loc, SourceRange Range, StringRef IID,
+          std::optional<StringRef> CLSID, COMThreadingModel ThreadingModel,
+          bool Implicit = false)
+    : DeclAttribute(DeclAttrKind::COM, Loc, Range, Implicit),
+      IID(IID), CLSID(CLSID) {
+    Bits.COMAttr.threadingModel = static_cast<unsigned>(ThreadingModel);
+  }
+
+  COMThreadingModel getThreadingModel() const {
+    return static_cast<COMThreadingModel>(Bits.COMAttr.threadingModel);
+  }
+
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DeclAttrKind::COM;
+  }
+
+  COMAttr *clone(ASTContext &ctx) const {
+    return new (ctx) COMAttr(AtLoc, Range, IID, CLSID, getThreadingModel(),
+                             isImplicit());
+  }
+
+  bool isEquivalent(const COMAttr *other, Decl *attachedTo) const {
+    return IID == other->IID && CLSID == other->CLSID &&
+        getThreadingModel() == other->getThreadingModel();
   }
 };
 

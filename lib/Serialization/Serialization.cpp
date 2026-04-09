@@ -3107,6 +3107,21 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       return;
     }
 
+    case DeclAttrKind::COM: {
+      auto theAttr = cast<COMAttr>(DA);
+      auto abbrCode = S.DeclTypeAbbrCodes[COMDeclAttrLayout::Code];
+      bool interface = !theAttr->IID.empty();
+      StringRef id = interface ? theAttr->IID
+                               : theAttr->CLSID.value_or(StringRef());
+      // The +1 bias is used to indicate that the Threading Model does not apply
+      // (i.e. an interface).
+      unsigned model =
+          interface ? 0 : static_cast<unsigned>(theAttr->getThreadingModel()) + 1;
+      COMDeclAttrLayout::emitRecord(S.Out, S.ScratchRecord, abbrCode,
+                                    theAttr->isImplicit(), interface, model, id);
+      return;
+    }
+
     case DeclAttrKind::SPIAccessControl: {
       auto theAttr = cast<SPIAccessControlAttr>(DA);
       auto abbrCode = S.DeclTypeAbbrCodes[SPIAccessControlDeclAttrLayout::Code];

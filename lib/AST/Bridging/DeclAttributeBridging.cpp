@@ -191,6 +191,19 @@ BridgedBackDeployedAttr BridgedBackDeployedAttr_createParsed(
       atLoc, range, platform, cVersion.unbridged(), /*Implicit=*/false);
 }
 
+BridgedCOMAttr BridgedCOMAttr_createParsed(BridgedASTContext cContext,
+                                           swift::SourceLoc atLoc,
+                                           swift::SourceRange range,
+                                           BridgedStringRef cIID,
+                                           BridgedStringRef cCLSID,
+                                           swift::COMThreadingModel model) {
+  std::optional<StringRef> CLSID;
+  if (cCLSID.unbridged().data())
+    CLSID = cCLSID.unbridged();
+  return new (cContext.unbridged()) COMAttr(atLoc, range, cIID.unbridged(),
+                                            CLSID, model);
+}
+
 BridgedCDeclAttr BridgedCDeclAttr_createParsed(BridgedASTContext cContext,
                                                SourceLoc atLoc,
                                                SourceRange range,

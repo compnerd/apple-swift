@@ -3382,6 +3382,103 @@ ParserStatus Parser::parseNewDeclAttribute(DeclAttributes &Attributes,
     break;
   }
 
+  case DeclAttrKind::COM: {
+    if (!consumeIfAttributeLParen()) {
+      // Bare `@COM` with no arguments - COM participating, not externally
+      // instantiable (no CLSID).
+      if (!DiscardAttribute)
+        Attributes.add(new (Context) COMAttr(AtLoc, SourceRange(Loc),
+                                             /*IID=*/"", /*CLSID=*/std::nullopt,
+                                             COMThreadingModel::Apartment));
+      break;
+    }
+
+    StringRef IID;
+    std::optional<StringRef> CLSID;
+    COMThreadingModel ThreadingModel = COMThreadingModel::Apartment;
+
+    auto failure = [this](const Token &Tok, auto id, auto &&...parameters) {
+      diagnose(Tok, id, std::forward<decltype(parameters)>(parameters)...);
+      skipUntilDeclStmtRBrace(tok::r_paren);
+      consumeIf(tok::r_paren);
+      return makeParserSuccess();
+    };
+
+    do {
+      struct {
+        Token token;
+        Identifier spelling;
+      } label;
+
+      if (!Tok.is(tok::identifier))
+        return failure(Tok, diag::attr_com_expected_label);
+      label.token = Tok;
+      consumeArgumentLabel(label.spelling, /*diagnoseDollarPrefix=*/true);
+      if (!consumeIf(tok::colon))
+        return failure(Tok, diag::attr_expected_colon_after_label, label.spelling.get());
+
+      if (label.spelling.is("IID") || label.spelling.is("CLSID")) {
+        if (Tok.isNot(tok::string_literal))
+          return failure(Tok, diag::attr_expected_string_literal, AttrName);
+        std::optional<StringRef> value =
+            getStringLiteralIfNotInterpolated(Loc, ("'" + AttrName + "'").str());
+        consumeToken(tok::string_literal);
+        if (!value) {
+          DiscardAttribute = true;
+          break;
+        }
+
+        if (label.spelling.is("IID"))
+          IID = *value;
+        else
+          CLSID = *value;
+      } else if (label.spelling.is("ThreadingModel")) {
+        // TODO(compnerd) use COM_MODULE_IDENTIFIER
+        if (Tok.is(tok::identifier) && Tok.getText() == "COM" &&
+            peekToken().is(tok::colon_colon)) {
+          consumeToken(tok::identifier);
+          consumeToken(tok::colon_colon);
+        }
+
+        if (Tok.is(tok::identifier) && Tok.getText() == "COMThreadingModel" &&
+            peekToken().is(tok::period))
+          consumeToken(tok::identifier);
+
+        if (!Tok.isAny(tok::period, tok::period_prefix))
+          return failure(Tok, diag::attr_com_expected_threading_model);
+        consumeToken();
+
+        std::optional<COMThreadingModel> Model =
+            llvm::StringSwitch<std::optional<COMThreadingModel>>(Tok.getText())
+                .Case("single", COMThreadingModel::Single)
+                .Cases("apartment", "sta", COMThreadingModel::Apartment)
+                .Cases("free", "mta", COMThreadingModel::Free)
+                .Case("both", COMThreadingModel::Both)
+                .Case("neutral", COMThreadingModel::Neutral)
+                .Default(std::nullopt);
+        if (!Model)
+          return failure(Tok, diag::attr_com_unknown_threading_model, Tok.getText());
+        consumeToken(tok::identifier);
+        ThreadingModel = *Model;
+      } else {
+        return failure(label.token, diag::attr_com_unknown_label, label.spelling.get());
+      }
+    } while (consumeIf(tok::comma));
+
+    AttrRange = SourceRange(Loc, Tok.getRange().getStart());
+
+    if (!consumeIf(tok::r_paren)) {
+      diagnose(Loc, diag::attr_expected_rparen, AttrName,
+               DeclAttribute::isDeclModifier(DK));
+      return makeParserSuccess();
+    }
+
+    if (!DiscardAttribute)
+      Attributes.add(new (Context) COMAttr(AtLoc, AttrRange,
+                                           IID, CLSID, ThreadingModel));
+    break;
+  }
+
   case DeclAttrKind::SwiftNativeObjCRuntimeBase: {
     SourceRange range;
     auto name = parseSingleAttrOptionIdentifier(*this, Loc, range,

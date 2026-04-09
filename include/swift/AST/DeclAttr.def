@@ -922,7 +922,12 @@ DECL_ATTR(warn, Warn,
   AllowMultipleAttributes | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove | ForbiddenInABIAttr,
   174)
 
-LAST_DECL_ATTR(Warn)
+DECL_ATTR(COM, COM,
+  OnClass | OnProtocol,
+  ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove | ForbiddenInABIAttr,
+  175)
+
+LAST_DECL_ATTR(COM)
 
 #undef DECL_ATTR_ALIAS
 #undef CONTEXTUAL_DECL_ATTR_ALIAS
