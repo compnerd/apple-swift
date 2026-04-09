@@ -1567,6 +1567,12 @@ ProtocolDecl *ASTContext::getProtocol(KnownProtocolKind kind) const {
       M = TheBuiltinModule;
     }
     break;
+  case KnownProtocolKind::IUnknown:
+  case KnownProtocolKind::ISwiftObject:
+    M = getLoadedModule(Id_COM);
+    if (!M)
+      M = MainModule;
+    break;
   default:
     M = getStdlibModule();
     break;
