@@ -212,17 +212,20 @@ FUNCTION(CopyPOD, Swift, swift_copyPOD, C_CC, AlwaysAvailable,
          EFFECT(RuntimeEffect::NoEffect),
          UNKNOWN_MEMEFFECTS)
 
-// void *swift_retain(void *ptr);
+// SwiftRetainResult swift_retain(void *ptr);
+// FirstParamReturned is conditionally added at call sites when COM interop
+// is disabled (see emitNativeStrongRetain).  It cannot appear on the
+// declaration because the return type changes in COM mode.
 FUNCTION(NativeStrongRetain, Swift, swift_retain, C_CC, AlwaysAvailable,
-         RETURNS(RefCountedPtrTy),
+         RETURNS(SwiftRetainResultTy),
          ARGS(RefCountedPtrTy),
-         ATTRS(NoUnwind, FirstParamReturned, WillReturn),
+         ATTRS(NoUnwind, WillReturn),
          EFFECT(RuntimeEffect::RefCounting),
          UNKNOWN_MEMEFFECTS)
 
-// void swift_release(void *ptr);
+// SwiftReleaseResult swift_release(void *ptr);
 FUNCTION(NativeStrongRelease, Swift, swift_release, C_CC, AlwaysAvailable,
-         RETURNS(VoidTy),
+         RETURNS(SwiftReleaseResultTy),
          ARGS(RefCountedPtrTy),
          ATTRS(NoUnwind),
          EFFECT(RuntimeEffect::RefCounting, RuntimeEffect::Deallocating),

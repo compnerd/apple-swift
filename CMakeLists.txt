@@ -712,6 +712,10 @@ option(SWIFT_STDLIB_ENABLE_OBJC_INTEROP
        "Should stdlib be built with Obj-C interop."
        "${SWIFT_STDLIB_ENABLE_OBJC_INTEROP_default}")
 
+option(SWIFT_STDLIB_ENABLE_COM_INTEROP
+       "Should stdlib and runtime be built with COM interop."
+       FALSE)
+
 set(SWIFT_DEBUGINFO_NON_LTO_ARGS "-g" CACHE STRING
     "Compiler options to use when building the compiler in debug or debuginfo mode. These do not apply when linking with LTO")
 
@@ -1472,6 +1476,7 @@ if(SWIFT_BUILD_STDLIB OR SWIFT_BUILD_SDK_OVERLAY)
   message(STATUS "Pointer Bounds Support:             ${SWIFT_ENABLE_EXPERIMENTAL_POINTER_BOUNDS}")
   message(STATUS "Runtime Support:                    ${SWIFT_ENABLE_RUNTIME_MODULE}")
   message(STATUS "C++ Interop Support:                ${SWIFT_ENABLE_EXPERIMENTAL_CXX_INTEROP}")
+  message(STATUS "COM Interop Support:                ${SWIFT_STDLIB_ENABLE_COM_INTEROP}")
   message(STATUS "")
 else()
   message(STATUS "Not building Swift standard library, SDK overlays, and runtime")

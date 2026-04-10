@@ -913,6 +913,23 @@ using AnyClassMetadata = TargetAnyClassMetadataType<InProcess>;
 using ClassIVarDestroyer =
   SWIFT_CC(swift) void(SWIFT_CONTEXT HeapObject *);
 
+/// An entry in a COM interface table, associating a protocol's IID.
+struct COMInterfaceEntry {
+  /// Pointer to the IID constant for this COM protocol.
+  const void *IID;
+};
+
+/// Table listing the COM interfaces implemented by a `@COM` class.
+/// Used by the `is` metadata scan fast path to check interfaces without
+/// `QueryInterface`.
+struct COMInterfaceTable {
+  uint32_t Count;
+  COMInterfaceEntry Entries[];
+
+  /// Check whether this class implements the interface identified by \p riid.
+  bool implements(const void *riid) const;
+};
+
 /// The structure of all class metadata.  This structure is embedded
 /// directly within the class's heap metadata structure and therefore
 /// cannot be extended without an ABI break.
@@ -984,6 +1001,11 @@ public:
   /// early return from a constructor. If null, no clean up will be performed
   /// and all ivars must be trivial.
   TargetSignedPointer<Runtime, ClassIVarDestroyer * __ptrauth_swift_heap_object_destructor> IVarDestroyer;
+
+  /// Pointer to the COM interface table for `@COM` classes, or `nullptr`.
+  /// Used by the `is` metadata scan fast path to check interfaces without
+  /// `QueryInterface`.
+  TargetSignedPointer<Runtime, const COMInterfaceTable * __ptrauth_swift_com_interface_table> COMInterfaces;
 
   // After this come the class members, laid out as follows:
   //   - class members for the superclass (recursively)

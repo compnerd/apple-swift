@@ -1734,6 +1734,9 @@ namespace SpecialPointerAuthDiscriminators {
   const uint16_t forceBridgeFromObjectiveCDiscriminator = 0x22fb; // = 8955
   const uint16_t conditionallyBridgeFromObjectiveCDiscriminator = 0x9a9b; // = 39579
 
+  /// COM
+  const uint16_t COMInterfaceTable = 0xc011;
+
   /// Dynamic replacement pointers.
   const uint16_t DynamicReplacementScope = 0x48F0; // = 18672
   const uint16_t DynamicReplacementKey = 0x2C7D; // = 11389

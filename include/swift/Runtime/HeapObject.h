@@ -42,6 +42,23 @@ using HeapMetadata = TargetHeapMetadata<InProcess>;
 
 struct OpaqueValue;
 
+#if SWIFT_COM_INTEROP
+/// When COM interop is enabled, `swift_retain` returns both the object pointer
+/// (for tail-call chaining) and the new reference count for COM `AddRef`. The
+/// two values are returned in registers on all supported platforms.
+struct SwiftRetainResult {
+  HeapObject *object;
+  size_t count;
+};
+
+/// When COM interop is enabled, `swift_release` returns the new reference count
+/// for COM `Release`. Returns `0` if the object was deallocated.
+using SwiftReleaseResult = size_t;
+#else
+using SwiftRetainResult = HeapObject *;
+using SwiftReleaseResult = void;
+#endif
+
 /// Allocates a new heap object.  The returned memory is
 /// uninitialized outside of the heap-object header.  The object
 /// has an initial retain count of 1, and its metadata is set to
@@ -138,7 +155,7 @@ HeapObject* swift_allocEmptyBox();
 /// which preserves a larger set of registers.
 SWIFT_RUNTIME_EXPORT
 SWIFT_REFCOUNT_CC
-HeapObject *swift_retain(HeapObject *object);
+SwiftRetainResult swift_retain(HeapObject *object);
 
 SWIFT_RUNTIME_EXPORT
 HeapObject *swift_retain_n(HeapObject *object, uint32_t n);
@@ -175,7 +192,7 @@ bool swift_isDeallocating(HeapObject *object);
 /// It's unlikely that a custom CC would be beneficial here.
 SWIFT_RUNTIME_EXPORT
 SWIFT_REFCOUNT_CC
-void swift_release(HeapObject *object);
+SwiftReleaseResult swift_release(HeapObject *object);
 
 SWIFT_RUNTIME_EXPORT
 void swift_nonatomic_release(HeapObject *object);

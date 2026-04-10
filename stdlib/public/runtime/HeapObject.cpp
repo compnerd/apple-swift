@@ -50,6 +50,21 @@
 
 using namespace swift;
 
+namespace {
+#if SWIFT_COM_INTEROP
+inline HeapObject *getAllocationBase(HeapObject *object,
+                                     const ClassMetadata *metadata) {
+  if (auto offset = metadata->getInstanceAddressPoint())
+    return reinterpret_cast<HeapObject *>(reinterpret_cast<uintptr_t>(object) - offset);
+  return object;
+}
+#else
+inline HeapObject *getAllocationBase(HeapObject *object, const ClassMetadata *) {
+  return object;
+}
+#endif
+}
+
 // Check to make sure the runtime is being built with a compiler that
 // supports the Swift calling convention.
 //
@@ -504,9 +519,15 @@ static HeapObject *(*SWIFT_REFCOUNT_CC volatile _swift_retain_adapter)(
     HeapObject *object) = _swift_retain_adapterImpl;
 #endif
 
-HeapObject *swift::swift_retain(HeapObject *object) {
+SwiftRetainResult swift::swift_retain(HeapObject *object) {
 #ifdef SWIFT_THREADING_NONE
   return swift_nonatomic_retain(object);
+#elif SWIFT_COM_INTEROP
+  auto *result = _swift_retain_(object);
+  size_t count = isValidPointerForNativeRetain(object)
+                    ? object->refCounts.getCount()
+                    : 1;
+  return {result, count};
 #else
   CALL_IMPL_SWIFT_REFCOUNT_CC(swift_retain, (object));
 #endif
@@ -558,9 +579,15 @@ static void _swift_release_adapter(HeapObject *object) {
 }
 #endif
 
-void swift::swift_release(HeapObject *object) {
+SwiftReleaseResult swift::swift_release(HeapObject *object) {
 #ifdef SWIFT_THREADING_NONE
   swift_nonatomic_release(object);
+#elif SWIFT_COM_INTEROP
+  size_t count = isValidPointerForNativeRetain(object)
+                    ? object->refCounts.getCount()
+                    : 0;
+  _swift_release_(object);
+  return count ? count - 1 : 0;
 #else
   CALL_IMPL_SWIFT_REFCOUNT_CC(swift_release, (object));
 #endif
@@ -645,7 +672,8 @@ void swift::swift_unownedRelease(HeapObject *object) {
   if (object->refCounts.decrementUnownedShouldFree(1)) {
     auto classMetadata = static_cast<const ClassMetadata*>(object->metadata);
 
-    swift_slowDealloc(object, classMetadata->getInstanceSize(),
+    swift_slowDealloc(getAllocationBase(object, classMetadata),
+                      classMetadata->getInstanceSize(),
                       classMetadata->getInstanceAlignMask());
   }
 #endif
@@ -670,8 +698,9 @@ void swift::swift_nonatomic_unownedRelease(HeapObject *object) {
   if (object->refCounts.decrementUnownedShouldFreeNonAtomic(1)) {
     auto classMetadata = static_cast<const ClassMetadata*>(object->metadata);
 
-    swift_slowDealloc(object, classMetadata->getInstanceSize(),
-                       classMetadata->getInstanceAlignMask());
+    swift_slowDealloc(getAllocationBase(object, classMetadata),
+                      classMetadata->getInstanceSize(),
+                      classMetadata->getInstanceAlignMask());
   }
 }
 
@@ -700,7 +729,8 @@ void swift::swift_unownedRelease_n(HeapObject *object, int n) {
 
   if (object->refCounts.decrementUnownedShouldFree(n)) {
     auto classMetadata = static_cast<const ClassMetadata*>(object->metadata);
-    swift_slowDealloc(object, classMetadata->getInstanceSize(),
+    swift_slowDealloc(getAllocationBase(object, classMetadata),
+                      classMetadata->getInstanceSize(),
                       classMetadata->getInstanceAlignMask());
   }
 #endif
@@ -724,7 +754,8 @@ void swift::swift_nonatomic_unownedRelease_n(HeapObject *object, int n) {
 
   if (object->refCounts.decrementUnownedShouldFreeNonAtomic(n)) {
     auto classMetadata = static_cast<const ClassMetadata*>(object->metadata);
-    swift_slowDealloc(object, classMetadata->getInstanceSize(),
+    swift_slowDealloc(getAllocationBase(object, classMetadata),
+                      classMetadata->getInstanceSize(),
                       classMetadata->getInstanceAlignMask());
   }
 }
@@ -1057,6 +1088,10 @@ static inline void swift_deallocObjectImpl(HeapObject *object,
 
   if (object->refCounts.canBeFreedNow()) {
     // object state DEINITING -> DEAD
+#if SWIFT_COM_INTEROP
+    if (const auto *metadata = dyn_cast<ClassMetadata>(object->metadata))
+      object = getAllocationBase(object, metadata);
+#endif
     swift_slowDealloc(object, allocatedSize, allocatedAlignMask);
   } else {
     // object state DEINITING -> DEINITED

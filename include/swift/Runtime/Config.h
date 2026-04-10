@@ -97,6 +97,11 @@
 #endif
 #endif
 
+/// Does the current Swift platform support COM interop?
+#ifndef SWIFT_COM_INTEROP
+#define SWIFT_COM_INTEROP 0
+#endif
+
 /// Does the current Swift platform allow information other than the
 /// class pointer to be stored in the isa field?  If so, when deriving
 /// the class pointer of an object, we must apply a
@@ -283,6 +288,9 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 #define __ptrauth_swift_type_descriptor \
   __ptrauth(ptrauth_key_process_independent_data, 1, \
             SpecialPointerAuthDiscriminators::TypeDescriptor)
+#define __ptrauth_swift_com_interface_table \
+  __ptrauth(ptrauth_key_process_independent_data, 1, \
+            SpecialPointerAuthDiscriminators::COMInterfaceTable)
 #define __ptrauth_swift_protocol_conformance_descriptor \
   __ptrauth(ptrauth_key_process_independent_data, 1, \
             SpecialPointerAuthDiscriminators::ProtocolConformanceDescriptor)
@@ -378,6 +386,7 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 #define __ptrauth_swift_runtime_function_entry_with_key(__key)
 #define __ptrauth_swift_runtime_function_entry_strip(__fn) (__fn)
 #define __ptrauth_swift_heap_object_destructor
+#define __ptrauth_swift_com_interface_table
 #define __ptrauth_swift_type_descriptor
 #define __ptrauth_swift_protocol_conformance_descriptor
 #define __ptrauth_swift_nonunique_extended_existential_type_shape
