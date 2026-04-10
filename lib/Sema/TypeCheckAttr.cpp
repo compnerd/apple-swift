@@ -2570,16 +2570,33 @@ void AttributeChecker::visitCOMAttr(COMAttr *attr) {
       return;
     }
 
-    if (attr->CLSID) {
-      if (attr->CLSID->empty() ||
-          !UUID::fromString(attr->CLSID->str().c_str())) {
-        diagnose(attr->getLocation(), diag::attr_com_invalid_guid, *(attr->CLSID));
-        attr->setInvalid();
-        return;
-      }
+    if (attr->CLSID && (attr->CLSID->empty() ||
+                        !UUID::fromString(attr->CLSID->str().c_str())) {
+      diagnose(attr->getLocation(), diag::attr_com_invalid_guid,
+               attr->CLSID.value());
+      attr->setInvalid();
+      return;
     }
 
-    // TODO(compnerd) ensure `ISwiftObject` is not conformed to
+    const ProtocolDecl *ISO =
+        Ctx.getProtocol(KnownProtocolKind::ISwiftObject);
+    if (!ISO) {
+      diagnose(SourceLoc(), diag::com_module_missing_type, "ISwiftObject");
+      return;
+    }
+
+    bool AnyObject = false;
+    InvertibleProtocolSet inverses;
+    auto inherited =
+        getDirectlyInheritedNominalTypeDecls(CD, inverses, AnyObject);
+    const auto &entry =
+        llvm::find_if(inherited, [ISO](const auto &E) { return E.Item == ISO; });
+    if (entry != std::end(inherited)) {
+      diagnose(entry->Loc, diag::attr_com_explicit_iswiftobject);
+      diagnose(attr->getLocation(), diag::attr_com_iswiftobject_implied);
+      attr->setInvalid();
+      return;
+    }
   }
 }
 
