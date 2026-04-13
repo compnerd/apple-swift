@@ -366,6 +366,10 @@ if(SWIFT_BUILD_STDLIB)
     add_subdirectory(Concurrency)
   endif()
 
+  if(SWIFT_STDLIB_ENABLE_COM_INTEROP)
+    add_subdirectory(COM)
+  endif()
+
   if(SWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING)
     add_subdirectory(RegexParser)
     add_subdirectory(StringProcessing)
