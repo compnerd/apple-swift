@@ -141,6 +141,22 @@ Solution::computeSubstitutions(NullablePtr<ValueDecl> decl,
             replacement, protoType, /*allowMissing=*/true);
 
     if (conformance.isInvalid()) {
+      // For protocol metatype extension members, Self is bound to the
+      // existential type which cannot conform to its own protocol.
+      // Provide a synthesized builtin conformance — the member does not
+      // actually use Self, so the conformance is never witnessed at
+      // runtime.
+      if (decl.isNonNull()) {
+        if (auto *ext = dyn_cast<ExtensionDecl>(decl.get()->getDeclContext())) {
+          if (ext->isMetatypeExtension()) {
+            return ProtocolConformanceRef(
+                ctx.getBuiltinConformance(
+                    replacement, protoType,
+                    BuiltinConformanceKind::Synthesized));
+          }
+        }
+      }
+
       auto synthesized = SynthesizedConformances.find(locator);
       if (synthesized != SynthesizedConformances.end()) {
         return ProtocolConformanceRef::forAbstract(

@@ -1504,6 +1504,17 @@ void ConstraintSystem::openGenericRequirements(
       continue;
     }
 
+    // For protocol metatype extensions, outerDC is the ExtensionDecl, not
+    // the protocol itself.  Match via getSelfProtocolDecl() instead.
+    if (skipProtocolSelfConstraint &&
+        kind == RequirementKind::Conformance &&
+        isa<ExtensionDecl>(outerDC) &&
+        cast<ExtensionDecl>(outerDC)->isMetatypeExtension() &&
+        req.getProtocolDecl() == outerDC->getSelfProtocolDecl() &&
+        req.getFirstType()->isEqual(getASTContext().TheSelfType)) {
+      continue;
+    }
+
     auto openedGenericLoc =
       locator.withPathElement(LocatorPathElt::OpenedGeneric(signature));
     openGenericRequirement(outerDC, signature, pos, requirements[pos],
@@ -2014,6 +2025,11 @@ ConstraintSystem::getTypeOfMemberReferencePre(
                                   preparedOverload);
         }
       }
+    } else if (auto *ext = dyn_cast<ExtensionDecl>(outerDC);
+               ext && ext->isMetatypeExtension()) {
+      // Metatype extension members do not require existential opening.
+      // The member belongs to the protocol metatype itself, not a
+      // conforming type.
     } else {
       // Open the existential.
       auto openedArchetype =
@@ -2029,10 +2045,21 @@ ConstraintSystem::getTypeOfMemberReferencePre(
   assert(openedParams.size() == 1);
 
   bool isDynamicLookup = (choice.getKind() == OverloadChoiceKind::DeclViaDynamic);
-  bool skipProtocolSelfConstraint = isDynamicLookup || isRequirementOrWitness(locator);
+  bool isMetatypeExtMember =
+      isa<ExtensionDecl>(outerDC) &&
+      cast<ExtensionDecl>(outerDC)->isMetatypeExtension();
+  bool skipProtocolSelfConstraint =
+      isDynamicLookup || isRequirementOrWitness(locator) || isMetatypeExtMember;
 
   Type selfObjTy = openedParams.front().getPlainType()->getMetatypeInstanceType();
-  if (outerDC->getSelfProtocolDecl()) {
+  if (isMetatypeExtMember) {
+    // Metatype extension members belong to the protocol metatype, not a
+    // conforming type.  Bind Self to the existential type directly — no
+    // conformance check is needed.
+    addConstraint(ConstraintKind::Equal, selfObjTy, baseOpenedTy,
+                  getConstraintLocator(locator), /*isFavored=*/false,
+                  preparedOverload);
+  } else if (outerDC->getSelfProtocolDecl()) {
     // For a protocol, substitute the base object directly. We don't need a
     // conformance constraint because we wouldn't have found the declaration
     // if it didn't conform.

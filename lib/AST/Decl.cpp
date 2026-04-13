@@ -2053,6 +2053,7 @@ ExtensionDecl::ExtensionDecl(SourceLoc extensionLoc,
 {
   Bits.ExtensionDecl.DefaultAndMaxAccessLevel = 0;
   Bits.ExtensionDecl.HasLazyConformances = false;
+  Bits.ExtensionDecl.IsMetatypeExtension = false;
   setTrailingWhereClause(trailingWhereClause);
 }
 
