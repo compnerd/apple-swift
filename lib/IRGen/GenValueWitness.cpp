@@ -1504,6 +1504,7 @@ getAddrOfKnownValueWitnessTable(IRGenModule &IGM, CanType type,
   } else if (fixedTI->isSingleRetainablePointer(ResilienceExpansion::Maximal,
                                                 &refCounting)) {
     switch (refCounting) {
+    case ReferenceCounting::COM:
     case ReferenceCounting::Native:
       witnessSurrogate = C.TheNativeObjectType;
       break;

@@ -3803,6 +3803,7 @@ namespace {
                                    DynamicMetadataRequest request) {
       // All class types have the same layout.
       switch (type->getReferenceCounting()) {
+      case ReferenceCounting::COM:
       case ReferenceCounting::Native:
         return emitFromValueWitnessTable(IGF.IGM.Context.TheNativeObjectType);
 

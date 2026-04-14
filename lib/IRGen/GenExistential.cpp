@@ -769,6 +769,7 @@ namespace {
       } \
       ScalarKind kind; \
       switch (Refcounting) { \
+        case ReferenceCounting::COM:                                                       \
         case ReferenceCounting::Native:  kind = ScalarKind::NativeStrongReference; break; \
         case ReferenceCounting::ObjC:    kind = ScalarKind::ObjCReference; break; \
         case ReferenceCounting::Block:   kind = ScalarKind::BlockReference; break; \
@@ -1473,6 +1474,7 @@ public:
     }
     ScalarKind kind;
     switch (Refcounting) {
+    case ReferenceCounting::COM:
     case ReferenceCounting::Native:
       kind = ScalarKind::NativeStrongReference;
       break;

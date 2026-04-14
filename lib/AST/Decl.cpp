@@ -7208,6 +7208,9 @@ ReferenceCounting ClassDecl::getObjectModel() const {
     return hasRefCountingAnnotations() ? ReferenceCounting::Custom
                                        : ReferenceCounting::None;
 
+  if (getAttrs().hasAttribute<COMAttr>())
+    return ReferenceCounting::COM;
+
   if (checkAncestry(AncestryFlags::ObjCObjectModel))
     return ReferenceCounting::ObjC;
 

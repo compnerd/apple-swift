@@ -89,6 +89,7 @@ public:
   IsaEncoding getIsaEncoding(ResilienceExpansion expansion) const {
     switch (asDerived().getReferenceCounting()) {
     // We can access the isa of pure Swift heap objects directly.
+    case ReferenceCounting::COM:
     case ReferenceCounting::Native:
       return IsaEncoding::Pointer;
     // Use the ObjC runtime to access ObjC or mixed-heritage isas.

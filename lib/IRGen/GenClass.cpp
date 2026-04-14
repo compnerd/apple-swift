@@ -141,6 +141,7 @@ namespace {
           CompletelyFragileLayout(completelyFragileLayout) {
       // Start by adding a heap header.
       switch (refcounting) {
+      case ReferenceCounting::COM:
       case ReferenceCounting::Native:
         // For native classes, place a full object header.
         addHeapHeader();

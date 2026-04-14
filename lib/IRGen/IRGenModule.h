@@ -980,6 +980,7 @@ public:
     case ReferenceCounting::Native:
       return false;
 
+    case ReferenceCounting::COM:
     case ReferenceCounting::Unknown:
     case ReferenceCounting::ObjC:
     case ReferenceCounting::Block:

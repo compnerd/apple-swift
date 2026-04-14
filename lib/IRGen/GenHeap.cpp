@@ -653,6 +653,8 @@ unsigned IRGenModule::getReferenceStorageExtraInhabitantCount(
     if (ObjCInterop)
       break;
     return getHeapObjectExtraInhabitantCount(*this);
+  case ReferenceCounting::COM:
+    return getHeapObjectExtraInhabitantCount(*this);
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
   case ReferenceCounting::None:
@@ -683,6 +685,8 @@ SpareBitVector IRGenModule::getReferenceStorageSpareBits(
 #include "swift/AST/ReferenceStorage.def"
     if (ObjCInterop)
       break;
+    return getHeapObjectSpareBits();
+  case ReferenceCounting::COM:
     return getHeapObjectSpareBits();
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
@@ -715,6 +719,8 @@ APInt IRGenModule::getReferenceStorageExtraInhabitantValue(unsigned bits,
     if (ObjCInterop)
       break;
     return getHeapObjectFixedExtraInhabitantValue(*this, bits, index, 0);
+  case ReferenceCounting::COM:
+    return getHeapObjectFixedExtraInhabitantValue(*this, bits, index, 0);
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
   case ReferenceCounting::None:
@@ -736,6 +742,7 @@ APInt IRGenModule::getReferenceStorageExtraInhabitantMask(
                                                 ReferenceOwnership ownership,
                                                 ReferenceCounting style) const {
   switch (style) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
@@ -757,6 +764,8 @@ llvm::Value *IRGenFunction::getReferenceStorageExtraInhabitantIndex(Address src,
   case ReferenceCounting::Native:
     if (IGM.ObjCInterop)
       break;
+    return getHeapObjectExtraInhabitantIndex(*this, src);
+  case ReferenceCounting::COM:
     return getHeapObjectExtraInhabitantIndex(*this, src);
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
@@ -796,6 +805,8 @@ void IRGenFunction::storeReferenceStorageExtraInhabitant(llvm::Value *index,
     if (IGM.ObjCInterop)
       break;
     return storeHeapObjectExtraInhabitant(*this, index, dest);
+  case ReferenceCounting::COM:
+    return storeHeapObjectExtraInhabitant(*this, index, dest);
   case ReferenceCounting::Block:
   case ReferenceCounting::ObjC:
   case ReferenceCounting::None:
@@ -827,6 +838,7 @@ void IRGenFunction::storeReferenceStorageExtraInhabitant(llvm::Value *index,
     auto &&spareBits =                                                         \
         IGM.getReferenceStorageSpareBits(ReferenceOwnership::Name, style);     \
     switch (style) {                                                           \
+    case ReferenceCounting::COM:                                               \
     case ReferenceCounting::Native:                                            \
       return new Native##Name##ReferenceTypeInfo(                              \
           valueType, IGM.Name##ReferenceStructTy, IGM.getPointerSize(),        \
@@ -1067,6 +1079,7 @@ void IRGenFunction::emitStrongRelease(llvm::Value *value,
                                       ReferenceCounting refcounting,
                                       Atomicity atomicity) {
   switch (refcounting) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
     return emitNativeStrongRelease(value, atomicity);
   case ReferenceCounting::ObjC:
@@ -1090,6 +1103,7 @@ void IRGenFunction::emitStrongRetain(llvm::Value *value,
                                      ReferenceCounting refcounting,
                                      Atomicity atomicity) {
   switch (refcounting) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
     emitNativeStrongRetain(value, atomicity);
     return;
@@ -1117,6 +1131,7 @@ void IRGenFunction::emitStrongRetain(llvm::Value *value,
 
 llvm::Type *IRGenModule::getReferenceType(ReferenceCounting refcounting) {
   switch (refcounting) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
     return RefCountedPtrTy;
   case ReferenceCounting::Bridge:
@@ -1141,6 +1156,7 @@ llvm::Type *IRGenModule::getReferenceType(ReferenceCounting refcounting) {
   RESULT IRGenFunction::emit##KIND(TYPE1 val1, TYPE2 val2,                     \
                                    ReferenceCounting style) {                  \
     switch (style) {                                                           \
+    case ReferenceCounting::COM:                                               \
     case ReferenceCounting::Native:                                            \
       return emitNative##KIND(val1, val2);                                     \
     case ReferenceCounting::ObjC:                                              \
@@ -1159,6 +1175,7 @@ llvm::Type *IRGenModule::getReferenceType(ReferenceCounting refcounting) {
 #define DEFINE_UNARY_OPERATION(KIND, RESULT, TYPE1)                            \
   RESULT IRGenFunction::emit##KIND(TYPE1 val1, ReferenceCounting style) {      \
     switch (style) {                                                           \
+    case ReferenceCounting::COM:                                               \
     case ReferenceCounting::Native:                                            \
       return emitNative##KIND(val1);                                           \
     case ReferenceCounting::ObjC:                                              \
@@ -1447,6 +1464,7 @@ emitIsUniqueCall(llvm::Value *value, ReferenceCounting style, SourceLoc loc, boo
   bool nonObjC = !IGM.getAvailabilityRange().isContainedIn(
       IGM.Context.getObjCIsUniquelyReferencedAvailability());
   switch (style) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native: {
     if (isNonNull)
       fn = IGM.getIsUniquelyReferenced_nonNull_nativeFunctionPointer();

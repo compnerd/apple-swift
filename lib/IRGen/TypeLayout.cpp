@@ -405,6 +405,7 @@ public:
 
 ScalarKind swift::irgen::refcountingToScalarKind(ReferenceCounting refCounting) {
   switch (refCounting) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
     return ScalarKind::NativeStrongReference;
   case ReferenceCounting::Bridge:

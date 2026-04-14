@@ -37,6 +37,14 @@ enum class ReferenceCounting : uint8_t {
   /// reference counting.
   Custom,
 
+  /// The object uses COM reference counting.
+  ///
+  /// COM objects share the native Swift reference count (AddRef/Release and
+  /// swift_retain/swift_release operate on the same counter) but have a
+  /// different object layout: COM vtable pointers precede the HeapObject
+  /// header.
+  COM,
+
   /// The object uses _Block_copy/_Block_release reference counting.
   ///
   /// This is a strict subset of ObjC; all blocks are also ObjC reference

@@ -1731,6 +1731,7 @@ const TypeInfo &TypeConverter::getTaskContinuationFunctionPtrTypeInfo() {
 const LoadableTypeInfo &
 IRGenModule::getReferenceObjectTypeInfo(ReferenceCounting refcounting) {
   switch (refcounting) {
+  case ReferenceCounting::COM:
   case ReferenceCounting::Native:
     return getNativeObjectTypeInfo();
   case ReferenceCounting::Unknown:
