@@ -4083,6 +4083,32 @@ function Test-SourceKitLSP {
   }
 }
 
+function Build-BootstrapFoundationMacros([Hashtable] $Platform) {
+  Build-CMakeProject `
+    -Src $SourceCache\swift-foundation\Sources\FoundationMacros `
+    -Bin (Get-ProjectBinaryCache $Platform BootstrapFoundationMacros) `
+    -BuildTargets default `
+    -Platform $Platform `
+    -UsePinnedCompilers Swift `
+    -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS) `
+    -Defines @{
+      SwiftSyntax_DIR = (Get-ProjectCMakeModules $Platform Compilers);
+    }
+}
+
+function Build-BootstrapTestingMacros([Hashtable] $Platform) {
+  Build-CMakeProject `
+    -Src $SourceCache\swift-testing\Sources\TestingMacros `
+    -Bin (Get-ProjectBinaryCache $Platform BootstrapTestingMacros) `
+    -BuildTargets default `
+    -Platform $Platform `
+    -UsePinnedCompilers Swift `
+    -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS) `
+    -Defines @{
+      SwiftSyntax_DIR = (Get-ProjectCMakeModules $Platform Compilers);
+    }
+}
+
 function Build-TestingMacros([Hashtable] $Platform) {
   Build-CMakeProject `
     -Src $SourceCache\swift-testing\Sources\TestingMacros `
@@ -4314,28 +4340,8 @@ if (-not $SkipBuild) {
     Invoke-BuildStep Build-CompilerRuntime $_
   }
 
-  # Build Macros
-  Build-CMakeProject `
-    -Src $SourceCache\swift-foundation\Sources\FoundationMacros `
-    -Bin (Get-ProjectBinaryCache $BuildPlatform BootstrapFoundationMacros) `
-    -BuildTargets default `
-    -Platform $BuildPlatform `
-    -UsePinnedCompilers Swift `
-    -SwiftSDK (Get-PinnedToolchainSDK -OS $BuildPlatform.OS) `
-    -Defines @{
-      SwiftSyntax_DIR = (Get-ProjectCMakeModules $BuildPlatform Compilers);
-    }
-
-  Build-CMakeProject `
-    -Src $SourceCache\swift-testing\Sources\TestingMacros `
-    -Bin (Get-ProjectBinaryCache $BuildPlatform BootstrapTestingMacros) `
-    -BuildTargets default `
-    -Platform $BuildPlatform `
-    -UsePinnedCompilers Swift `
-    -SwiftSDK (Get-PinnedToolchainSDK -OS $BuildPlatform.OS) `
-    -Defines @{
-      SwiftSyntax_DIR = (Get-ProjectCMakeModules $BuildPlatform Compilers);
-    }
+  Invoke-BuildStep Build-BootstrapFoundationMacros $BuildPlatform
+  Invoke-BuildStep Build-BootstrapTestingMacros $BuildPlatform
 
   if ($Windows) {
     Build-SDKDependencies $WindowsSDKBuilds
