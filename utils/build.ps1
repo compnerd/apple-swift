@@ -4551,6 +4551,10 @@ if ($Clean) {
 if (-not $SkipBuild) {
   Remove-Item -Force -Recurse ([IO.Path]::Combine((Get-InstallDir $HostPlatform), "Platforms")) -ErrorAction Ignore
 
+  if ($IncludeDS2) {
+    Invoke-BuildStep Build-RegsGen2 $BuildPlatform
+  }
+
   Invoke-BuildStep Build-CMark $BuildPlatform
   Invoke-BuildStep Build-BuildTools $BuildPlatform
   Invoke-BuildStep Build-SQLite $BuildPlatform
@@ -4558,9 +4562,6 @@ if (-not $SkipBuild) {
   if ($IsCrossCompiling) {
     Invoke-BuildStep Build-XML2 $BuildPlatform
     Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts"
-  }
-  if ($IncludeDS2) {
-    Invoke-BuildStep Build-RegsGen2 $BuildPlatform
   }
 
   Invoke-BuildStep Build-CMark $HostPlatform
