@@ -832,6 +832,7 @@ enum Project {
 
   CDispatch
   Stage0Compilers
+  BootstrapRuntime
   Compilers
   FoundationMacros
   TestingMacros
@@ -2916,6 +2917,43 @@ function Build-Runtime([Hashtable] $Platform) {
     })
 }
 
+function Build-BootstrapSDK([Hashtable] $Platform) {
+  # TODO: remove this once the migration is completed.
+  Invoke-IsolatingEnvVars {
+    Invoke-VsDevShell $BuildPlatform
+
+    Push-Location "${SourceCache}\swift\Runtimes"
+    Start-Process -Wait -WindowStyle Hidden -FilePath $cmake -ArgumentList @("-P", "Resync.cmake")
+    Pop-Location
+  }
+
+  Build-CMakeProject `
+    -Src $SourceCache\swift\Runtimes\Core `
+    -Bin (Get-ProjectBinaryCache $Platform BootstrapRuntime) `
+    -InstallTo "$(Get-SwiftSDK -OS $Platform.OS -Identifier Bootstrap)\usr" `
+    -Platform $Platform `
+    -CCompiler $Compilers.Stage0.GNUC `
+    -CXXCompiler $Compilers.Stage0.GNUCXX `
+    -SwiftCompiler $Compilers.Stage0.Swift `
+    -SwiftSDK $null `
+    -Defines @{
+      BUILD_SHARED_LIBS = "YES";
+      CMAKE_STATIC_LIBRARY_PREFIX_Swift = "lib";
+
+      dispatch_DIR = (Get-ProjectCMakeModules $Platform CDispatch);
+
+      # FIXME(compnerd) remove this once the default option is flipped to `ON`.
+      SwiftCore_ENABLE_BACKTRACING = "YES";
+      # FIXME(compnerd) remove this once the default option is flipped to `ON`.
+      SwiftCore_ENABLE_CONCURRENCY = "YES";
+      # FIXME(compnerd) remove this once the default option is flipped to `ON`.
+      SwiftCore_ENABLE_REMOTE_MIRROR = "YES";
+      # FIXME(compnerd) this currently causes a build failure on Windows, but
+      # this should be enabled when building the dynamic runtime.
+      SwiftCore_ENABLE_LIBRARY_EVOLUTION = "NO";
+    }
+}
+
 # Note: This is only used by Android; if you're looking for tests on the Swift
 #       compiler/runtime otherwise, Test-Compilers is the place you need to be
 #       looking.
@@ -4529,6 +4567,7 @@ if (-not $SkipBuild) {
   Invoke-BuildStep Build-XML2 $HostPlatform
   Invoke-BuildStep Build-CDispatch $HostPlatform
   Invoke-BuildStep Build-Compilers $HostPlatform -Variant "Asserts" -Project Stage0Compilers
+  Invoke-BuildStep Build-BootstrapSDK $BuildPlatform
   Invoke-BuildStep Build-Compilers $HostPlatform -Variant "Asserts" @{
     CCompiler = $Compilers.Stage0.C;
     CXXCompiler = $Compilers.Stage0.CXX;
