@@ -831,6 +831,7 @@ enum Project {
   EarlySwiftDriver
 
   CDispatch
+  Stage0Compilers
   Compilers
   FoundationMacros
   TestingMacros
@@ -1469,6 +1470,64 @@ $Compilers = @{
       RuntimeDir        = Get-PinnedToolchainRuntime
     }
   }
+
+  Stage0 = @{
+    C = @{
+      Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "clang-cl.exe")
+      DriverStyle       = [DriverStyle]::ClangCL
+      Flags             = @("/GS-", "/Gw", "/Gy", "/Oy", "/Oi", "/Zc:inline")
+      DebugFlags        = { param([string] $Format)
+        if ($Format -eq "dwarf") { @("-clang:-gdwarf") } else { @() }
+      }
+      AssumeFunctional  = $true
+    }
+
+    CXX = @{
+      Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "clang-cl.exe")
+      DriverStyle       = [DriverStyle]::ClangCL
+      Flags             = @("/GS-", "/Gw", "/Gy", "/Oy", "/Oi", "/Zc:inline", "/Zc:__cplusplus")
+      DebugFlags        = { param([string] $Format)
+        if ($Format -eq "dwarf") { @("-clang:-gdwarf") } else { @() }
+      }
+      AssumeFunctional  = $true
+    }
+
+    GNUC = @{
+      Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "clang.exe")
+      DriverStyle       = [DriverStyle]::GNU
+      Flags             = @("-fno-stack-protector", "-ffunction-sections", "-fdata-sections", "-fomit-frame-pointer", "-finline-functions")
+      DebugFlags        = { param([string] $Format)
+        if ($Format -eq "dwarf") { @("-gdwarf") } else { @("-gcodeview") }
+      }
+      AssumeFunctional  = $true
+    }
+
+    GNUCXX = @{
+      Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "clang++.exe")
+      DriverStyle       = [DriverStyle]::GNU
+      Flags             = @("-fno-stack-protector", "-ffunction-sections", "-fdata-sections", "-fomit-frame-pointer", "-finline-functions")
+      DebugFlags        = { param([string] $Format)
+        if ($Format -eq "dwarf") { @("-gdwarf") } else { @("-gcodeview") }
+      }
+      AssumeFunctional  = $true
+    }
+
+    Swift = @{
+      Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "swiftc.exe")
+      DriverStyle       = [DriverStyle]::Swift
+      Flags             = @()
+      DebugFlags        = { param([string] $Format)
+        if ($Format -eq $null) { return @("-gnone") }
+        if ($Format -eq "dwarf") {
+          return @("-g", "-debug-info-format=dwarf", "-use-ld=lld-link", "-Xlinker", "/DEBUG:DWARF")
+        }
+        return @("-g", "-debug-info-format=codeview", "-Xlinker", "/DEBUG")
+      }
+      AssumeFunctional  = $true
+
+      RuntimeDir        = Get-PinnedToolchainRuntime
+    }
+  }
 }
 
 $Compilers.Host = @{
@@ -1489,6 +1548,16 @@ $Assemblers = @{
 
   Pinned = @{
     Executable        = Join-Path -Path (Get-PinnedToolchainToolsDir) -ChildPath "clang-cl.exe"
+    DriverStyle       = [DriverStyle]::ClangCL
+    Flags             = @()
+    DebugFlags        = { param([string] $Format)
+      if ($Format -eq "dwarf") { @("-clang:-gdwarf") } else { @("-clang:-gcodeview") }
+    }
+    AssumeFunctional  = $false
+  }
+
+  Stage0 = @{
+    Executable        = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform Stage0Compilers), "bin", "clang-cl.exe")
     DriverStyle       = [DriverStyle]::ClangCL
     Flags             = @()
     DebugFlags        = { param([string] $Format)
@@ -2194,7 +2263,7 @@ function Build-CDispatch([Hashtable] $Platform, [switch] $Static = $false) {
     }
 }
 
-function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch] $Test) {
+function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch] $Test, [string] $SwiftSDK = (Get-PinnedToolchainSDK -OS $Platform.OS)) {
   $BuildTools = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform BuildTools), "bin")
   $PythonRoot = [IO.Path]::Combine((Get-PythonPath $Platform), "tools")
   $PythonLibName = "python{0}{1}" -f ([System.Version]$PythonVersion).Major, ([System.Version]$PythonVersion).Minor
@@ -2294,7 +2363,7 @@ function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch]
     SWIFT_ENABLE_VOLATILE = "YES";
     SWIFT_PATH_TO_LIBDISPATCH_SOURCE = "$SourceCache\swift-corelibs-libdispatch";
     SWIFT_PATH_TO_STRING_PROCESSING_SOURCE = "$SourceCache\swift-experimental-string-processing";
-    SWIFT_PATH_TO_SWIFT_SDK = (Get-PinnedToolchainSDK -OS $Platform.OS);
+    SWIFT_PATH_TO_SWIFT_SDK = $SwiftSDK;
     SWIFT_PATH_TO_SWIFT_SYNTAX_SOURCE = "$SourceCache\swift-syntax";
     SWIFT_STDLIB_ASSERTIONS = "NO";
     SWIFTSYNTAX_ENABLE_ASSERTIONS = "NO";
@@ -2302,21 +2371,28 @@ function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch]
   }
 }
 
-function Build-Compilers([Hashtable] $Platform, [string] $Variant) {
+function Build-Compilers([Hashtable] $Platform,
+                         [string]    $Variant,
+                         [Project]   $Project       = [Project]::Compilers,
+                         [Hashtable] $CCompiler     = $Compilers.Host.C,
+                         [Hashtable] $CXXCompiler   = $Compilers.Host.CXX,
+                         [Hashtable] $SwiftCompiler = $Compilers.Pinned.Swift,
+                         [string]    $SwiftSDK      = (Get-PinnedToolchainSDK -OS $Platform.OS)) {
   New-Item -ItemType Directory -Path $BinaryCache\$($HostPlatform.Triple)\compilers -ErrorAction Ignore | Out-Null
   New-Item -ItemType SymbolicLink -Path "$BinaryCache\$($HostPlatform.Triple)\compilers" -Target "$BinaryCache\2" -ErrorAction Ignore | Out-Null
+
   Build-CMakeProject `
     -Src $SourceCache\llvm-project\llvm `
-    -Bin (Get-ProjectBinaryCache $Platform Compilers) `
+    -Bin (Get-ProjectBinaryCache $Platform $Project) `
     -InstallTo "$(Get-InstallDir $Platform)\Toolchains\$ProductVersion+$Variant\usr" `
     -Platform $Platform `
-    -CCompiler $Compilers.Host.C `
-    -CXXCompiler $Compilers.Host.CXX `
-    -SwiftCompiler $Compilers.Pinned.Swift `
-    -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS) `
+    -CCompiler $CCompiler `
+    -CXXCompiler $CXXCompiler `
+    -SwiftCompiler $SwiftCompiler `
+    -SwiftSDK $SwiftSDK `
     -BuildTargets @("install-distribution") `
     -CacheScript $SourceCache\swift\cmake\caches\Windows-$($Platform.Architecture.LLVMName).cmake `
-    -Defines (Get-CompilersDefines $Platform $Variant)
+    -Defines (Get-CompilersDefines $Platform $Variant -SwiftSDK $SwiftSDK)
 
   $Settings = @{
     FallbackLibrarySearchPaths = @("usr/bin")
@@ -4384,7 +4460,12 @@ function Build-NoAssertsToolchain() {
 
   $Stopwatch = [Diagnostics.Stopwatch]::StartNew()
 
-  Invoke-BuildStep Build-Compilers $HostPlatform -Variant "NoAsserts"
+  Invoke-BuildStep Build-Compilers $HostPlatform -Variant "NoAsserts" -Project Stage0Compilers
+  Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts" @{
+      CCompiler = $Compilers.Stage0.C;
+      CXXCompiler = $Compilers.Stage0.CXX;
+      SwiftCompiler = $Compilers.Stage0.Swift;
+  }
 
   Install-HostToolchain $HostPlatform.NoAssertsToolchainInstallRoot
 
@@ -4447,7 +4528,12 @@ if (-not $SkipBuild) {
   Invoke-BuildStep Build-CMark $HostPlatform
   Invoke-BuildStep Build-XML2 $HostPlatform
   Invoke-BuildStep Build-CDispatch $HostPlatform
-  Invoke-BuildStep Build-Compilers $HostPlatform -Variant "Asserts"
+  Invoke-BuildStep Build-Compilers $HostPlatform -Variant "Asserts" -Project Stage0Compilers
+  Invoke-BuildStep Build-Compilers $HostPlatform -Variant "Asserts" @{
+    CCompiler = $Compilers.Stage0.C;
+    CXXCompiler = $Compilers.Stage0.CXX;
+    SwiftCompiler = $Compilers.Stage0.Swift;
+  }
   Get-SelectedSDKBuilds | ForEach-Object {
     Invoke-BuildStep Build-CompilerRuntime $_
   }
