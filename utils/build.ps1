@@ -4629,6 +4629,7 @@ if (-not $SkipBuild) {
   Invoke-BuildStep Build-SQLite $BuildPlatform
   Invoke-BuildStep Build-EarlySwiftDriver $BuildPlatform
   Invoke-BuildStep Build-XML2 $BuildPlatform
+  Invoke-BuildStep Build-CDispatch $BuildPlatform
   Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts" -Project Stage0Compilers
   Invoke-BuildStep Build-BootstrapSDK $BuildPlatform
   Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts" -Project Stage1Compilers @{
