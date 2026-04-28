@@ -3386,7 +3386,7 @@ function Install-SDK([Hashtable[]] $Platforms, [OS] $OS = $Platforms[0].OS, [str
   }
 }
 
-function Build-SDK([Hashtable] $Platform) {
+function Build-LegacySDK([Hashtable] $Platform) {
   # Third Party Dependencies
   Invoke-BuildStep Build-LLVM $Platform
 
@@ -4343,7 +4343,7 @@ if (-not $SkipBuild) {
         Windows {
           $SDKROOT = Get-SwiftSDK -OS Windows -Identifier Windows
           foreach ($Build in $WindowsSDKBuilds) {
-            Invoke-BuildStep Build-SDK $Build
+            Invoke-BuildStep Build-LegacySDK $Build
 
             ConvertTo-ThickLayout -Platform $Build -Resources "${SDKROOT}\usr\lib\swift\windows" -Filter @("*.lib")
 
@@ -4405,7 +4405,7 @@ if (-not $SkipBuild) {
         Android {
           $SDKROOT = Get-SwiftSDK -OS Android -Identifier Android
           foreach ($Build in $AndroidSDKBuilds) {
-            Invoke-BuildStep Build-SDK $Build
+            Invoke-BuildStep Build-LegacySDK $Build
 
             ConvertTo-ThickLayout -Platform $Build -Resources "${SDKROOT}\usr\lib\swift\android" -Filter @(".a", ".so")
           }
