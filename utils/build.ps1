@@ -818,6 +818,7 @@ enum Project {
   BootstrapFoundationMacros
   BootstrapTestingMacros
   EarlySwiftDriver
+  Stage0Compilers
 
   CDispatch
   Compilers
@@ -1799,9 +1800,9 @@ function Build-CMakeProject {
           # runtime.
           $Executable = if ($UseC) {
             $CCompiler.Executable
-          } else if ($UseCXX) {
+          } elseif ($UseCXX) {
             $CXXCompiler.Executable
-          } else if ($UseASM) {
+          } elseif ($UseASM) {
             $Assembler.Executable
           }
           $ld = Join-Path -Path (Split-Path $Executable) -ChildPath "ld.lld"
@@ -2181,7 +2182,10 @@ function Build-CDispatch([Hashtable] $Platform, [switch] $Static = $false) {
     }
 }
 
-function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch] $Test) {
+function Get-CompilersDefines([Hashtable] $Platform,
+                              [string]    $Variant,
+                              [switch]    $Test,
+                              [string]    $SwiftSDK = (Get-PinnedToolchainSDK -OS $Platform.OS)) {
   $BuildTools = [IO.Path]::Combine((Get-ProjectBinaryCache $BuildPlatform BuildTools), "bin")
   $PythonRoot = [IO.Path]::Combine((Get-PythonPath $Platform), "tools")
   $PythonLibName = "python{0}{1}" -f ([System.Version]$PythonVersion).Major, ([System.Version]$PythonVersion).Minor
@@ -2276,7 +2280,7 @@ function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch]
     SWIFT_ENABLE_VOLATILE = "YES";
     SWIFT_PATH_TO_LIBDISPATCH_SOURCE = "$SourceCache\swift-corelibs-libdispatch";
     SWIFT_PATH_TO_STRING_PROCESSING_SOURCE = "$SourceCache\swift-experimental-string-processing";
-    SWIFT_PATH_TO_SWIFT_SDK = (Get-PinnedToolchainSDK -OS $Platform.OS);
+    SWIFT_PATH_TO_SWIFT_SDK = $SwiftSDK;
     SWIFT_PATH_TO_SWIFT_SYNTAX_SOURCE = "$SourceCache\swift-syntax";
     SWIFT_STDLIB_ASSERTIONS = "NO";
     SWIFTSYNTAX_ENABLE_ASSERTIONS = "NO";
@@ -2284,21 +2288,28 @@ function Get-CompilersDefines([Hashtable] $Platform, [string] $Variant, [switch]
   }
 }
 
-function Build-Compilers([Hashtable] $Platform, [string] $Variant) {
+function Build-Compilers([Hashtable] $Platform,
+                         [string]    $Variant,
+                         [Project]   $Project       = [Project]::Compilers,
+                         [Hashtable] $CCompiler     = $Compilers.Host.C,
+                         [Hashtable] $CXXCompiler   = $Compilers.Host.CXX,
+                         [Hashtable] $SwiftCompiler = $Compilers.Pinned.Swift,
+                         [string]    $SwiftSDK      = (Get-PinnedToolchainSDK -OS $Platform.OS)) {
   New-Item -ItemType Directory -Path $BinaryCache\$($HostPlatform.Triple) -ErrorAction Ignore
   New-Item -ItemType SymbolicLink -Path "$BinaryCache\$($HostPlatform.Triple)\compilers" -Target "$BinaryCache\5" -ErrorAction Ignore
+
   Build-CMakeProject `
     -Src $SourceCache\llvm-project\llvm `
-    -Bin (Get-ProjectBinaryCache $Platform Compilers) `
+    -Bin (Get-ProjectBinaryCache $Platform $Project) `
     -InstallTo "$(Get-InstallDir $Platform)\Toolchains\$ProductVersion+$Variant\usr" `
     -Platform $Platform `
-    -CCompiler $Compilers.Host.C `
-    -CXXCompiler $Compilers.Host.CXX `
-    -SwiftCompiler $Compilers.Pinned.Swift `
-    -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS) `
+    -CCompiler $CCompiler `
+    -CXXCompiler $CXXCompiler `
+    -SwiftCompiler $SwiftCompiler `
+    -SwiftSDK $SwiftSDK `
     -BuildTargets @("install-distribution") `
     -CacheScript $SourceCache\swift\cmake\caches\Windows-$($Platform.Architecture.LLVMName).cmake `
-    -Defines (Get-CompilersDefines $Platform $Variant)
+    -Defines (Get-CompilersDefines $Platform $Variant -SwiftSDK $SwiftSDK)
 
   $Settings = @{
     FallbackLibrarySearchPaths = @("usr/bin")
@@ -4420,8 +4431,11 @@ if (-not $SkipBuild) {
   Invoke-BuildStep Build-BuildTools $BuildPlatform
   Invoke-BuildStep Build-SQLite $BuildPlatform
   Invoke-BuildStep Build-EarlySwiftDriver $BuildPlatform
+  Invoke-BuildStep Build-XML2 $BuildPlatform
+  Invoke-BuildStep Build-CDispatch $BuildPlatform
+  Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts" -Project Stage0Compilers
+
   if ($IsCrossCompiling) {
-    Invoke-BuildStep Build-XML2 $BuildPlatform
     Invoke-BuildStep Build-Compilers $BuildPlatform -Variant "Asserts"
   }
   if ($IncludeDS2) {
