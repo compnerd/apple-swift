@@ -3444,6 +3444,7 @@ function Build-mimalloc() {
   Add-KeyValueIfNew $Properties Configuration Release
   Add-KeyValueIfNew $Properties OutDir "$BinaryCache\$($Platform.Triple)\mimalloc\bin\"
   Add-KeyValueIfNew $Properties Platform "$($Platform.Architecture.ShortName)"
+  Add-KeyValueIfNew $Properties PlatformToolset v145
 
   Invoke-IsolatingEnvVars {
     Invoke-VsDevShell $Platform

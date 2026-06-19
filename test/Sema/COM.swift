@@ -1,7 +1,16 @@
 // RUN: %target-typecheck-verify-swift -enable-experimental-com-interop
 
 @com(interface: "00000000-0000-0000-C000-000000000046")
-@_marker protocol IUnknown: AnyObject { }
+protocol IUnknown: AnyObject { }
+
+struct GUID {
+  public init(data1: UInt32, data2: UInt16, data3: UInt16,
+              data4: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)) {
+  }
+}
+
+protocol ISwiftObject {
+}
 
 @com(interface: "00000000-0000-0000-0000-000000000000")
 protocol IInterface1: IUnknown { }
