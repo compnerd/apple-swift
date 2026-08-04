@@ -259,13 +259,13 @@ if ($UseHostToolchain -is [string]) {
 
 $DefaultPinned = @{
   AMD64 = @{
-    PinnedBuild = "https://download.swift.org/development/windows10/swift-DEVELOPMENT-SNAPSHOT-2026-03-16-a/swift-DEVELOPMENT-SNAPSHOT-2026-03-16-a-windows10.exe";
-    PinnedSHA256 = "34C90B5535A2D137C874A12D591201D2C3E324FB437CE51B6D057B8A8BA2CC4E";
+    PinnedBuild = "https://download.swift.org/swift-6.4.x-branch/windows10/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-08-01-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-08-01-a-windows10.exe";
+    PinnedSHA256 = "C9C3E64A05E5ED0857C2DF5B099113251F326CE73A05E1C88D0AB6F8EFE04BA2";
     PinnedVersion = "0.0.0";
   };
   ARM64 = @{
-    PinnedBuild = "https://download.swift.org/development/windows10-arm64/swift-DEVELOPMENT-SNAPSHOT-2026-03-16-a/swift-DEVELOPMENT-SNAPSHOT-2026-03-16-a-windows10-arm64.exe"
-    PinnedSHA256 = "A60198647128269812AA00179801725BBD58D714AE52F2D19E7D0133DC035BF2";
+    PinnedBuild = "https://download.swift.org/swift-6.4.x-branch/windows10-arm64/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-08-01-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-08-01-a-windows10-arm64.exe"
+    PinnedSHA256 = "9481876E76B42A4FFA7B5394EA47C664FA899CBD6F1986E4770E8D9F3E21F773";
     PinnedVersion = "0.0.0";
   };
 }
@@ -2670,9 +2670,6 @@ function Build-BuildTools([Hashtable] $Platform) {
 }
 
 function Build-EarlySwiftDriver([Hashtable] $Platform) {
-  # `-static-stdlib` requires static-stdlib content under `lib/swift_static/`,
-  # which only the experimental SDK in pinned ships; the resilient `Windows
-  # .sdk` only has the dynamic stdlib.  Hence the explicit `-Identifier`.
   Invoke-IsolatingEnvVars {
     $env:Path = "$(Get-PinnedToolchainRuntime);${env:Path}"
     Build-CMakeProject `
@@ -2682,7 +2679,7 @@ function Build-EarlySwiftDriver([Hashtable] $Platform) {
       -CCompiler $Compilers.Pinned.C `
       -CXXCompiler $Compilers.Pinned.CXX `
       -SwiftCompiler $Compilers.Pinned.Swift `
-      -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS -Identifier "$($Platform.OS)Experimental") `
+      -SwiftSDK (Get-PinnedToolchainSDK -OS $Platform.OS) `
       -BuildTargets default `
       -Defines @{
         BUILD_SHARED_LIBS = "NO";
