@@ -1402,6 +1402,7 @@ public:
   void visitClassMethodInst(ClassMethodInst *i);
   void visitSuperMethodInst(SuperMethodInst *i);
   void visitObjCMethodInst(ObjCMethodInst *i);
+  void visitCOMMethodInst(COMMethodInst *i);
   void visitObjCSuperMethodInst(ObjCSuperMethodInst *i);
   void visitWitnessMethodInst(WitnessMethodInst *i);
 
@@ -9054,6 +9055,10 @@ void IRGenSILFunction::visitObjCMethodInst(swift::ObjCMethodInst *i) {
   // to happen when the method is called.
   assert(i->getMember().isForeign);
   setLoweredObjCMethod(i, i->getMember());
+}
+
+void IRGenSILFunction::visitCOMMethodInst(swift::COMMethodInst *i) {
+  llvm_unreachable("com_method lowering is not implemented");
 }
 
 void IRGenSILFunction::visitGetAsyncContinuationInst(
