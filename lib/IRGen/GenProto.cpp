@@ -2821,6 +2821,11 @@ static void addWTableTypeMetadata(IRGenModule &IGM,
 }
 
 void IRGenModule::emitSILWitnessTable(SILWitnessTable *wt) {
+  // A COM conformance has no runtime witness table. Its SIL witness table is
+  // used only to emit the native COM vtables.
+  if (wt->getConformance()->getProtocol()->isCOMInterface())
+    return;
+
   // Don't emit a witness table if it is a declaration.
   if (wt->isDeclaration())
     return;
@@ -3969,6 +3974,18 @@ llvm::Value *irgen::emitWitnessTableRef(IRGenFunction &IGF,
   // requirements of the archetype. Look at what's locally bound.
   ProtocolConformance *concreteConformance;
   if (conformance.isAbstract()) {
+    if (proto->isCOMInterface()) {
+      auto archetype = cast<ArchetypeType>(srcType);
+      for (auto *required : archetype->getConformsTo()) {
+        if (!required->isCOMInterface()) continue;
+        auto *hierarchy = required->getCOMInterfaceHierarchy();
+        assert(hierarchy && !hierarchy->isInvalid());
+        if (llvm::is_contained(hierarchy->getABIChain(), proto))
+          return emitArchetypeWitnessTableRef(IGF, archetype, required);
+      }
+      llvm_unreachable("COM archetype is missing an interface adjustment");
+    }
+
     // An abstract conformance whose conforming type is a metatype rather than
     // an archetype arises from a `where T.Type: P` requirement. Its root
     // witness table is supplied as a generic argument and bound against the
@@ -4035,6 +4052,12 @@ llvm::Value *irgen::emitWitnessTableRef(IRGenFunction &IGF,
     }
   }
   assert(concreteConformance->getProtocol() == proto);
+
+  if (proto->isCOMInterface()) {
+    if (srcType->isExistentialType() || srcType->is<ExistentialArchetypeType>())
+      return getCOMExistentialAdjustment(IGF.IGM);
+    return getCOMInterfaceAdjustment(IGF.IGM, srcType, proto);
+  }
 
   auto cacheKind =
     LocalTypeDataKind::forConcreteProtocolWitnessTable(concreteConformance);
@@ -4695,6 +4718,24 @@ llvm::Value *irgen::emitGenericCOMInterfaceProjection(IRGenFunction &IGF,
   auto conformance = ProtocolConformanceRef::forAbstract(type, protocol);
   auto *adjustment = emitWitnessTableRef(IGF, type, conformance);
   return IGF.Builder.CreateInBoundsGEP(IGF.IGM.Int8Ty, value, adjustment,
+                                       "com.interface");
+}
+
+llvm::Value *
+irgen::emitGenericCOMInterfaceProjection(IRGenFunction &IGF, llvm::Value *value,
+                                         CanType Ty, ProtocolDecl *PD,
+                                         ProtocolConformanceRef conformance) {
+  assert(PD->isCOMInterface());
+  assert(conformance && conformance.getProtocol() == PD);
+  assert(!IGF.IGM.isResilient(PD, ResilienceExpansion::Maximal));
+
+  auto *adjustment = emitWitnessTableRef(IGF, Ty, conformance);
+  if (adjustment->getType()->isPointerTy())
+    adjustment = IGF.Builder.CreatePtrToInt(adjustment, IGF.IGM.IntPtrTy);
+  auto *object = IGF.Builder.CreateLoad(Address(value, IGF.IGM.Int8PtrTy,
+                                                IGF.IGM.getPointerAlignment()),
+                                        "com.value");
+  return IGF.Builder.CreateInBoundsGEP(IGF.IGM.Int8Ty, object, adjustment,
                                        "com.interface");
 }
 

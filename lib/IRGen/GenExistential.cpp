@@ -2046,13 +2046,14 @@ static void bindArchetype(IRGenFunction &IGF,
 
 void irgen::bindOpenedCOMExistentialArchetype(IRGenFunction &IGF,
                                               CanArchetypeType archetype) {
-  // An opened foreign interface already points at its interface address point.
   for (auto *protocol : archetype->getConformsTo()) {
     if (!protocol->isCOMInterface())
       continue;
-    IGF.setUnscopedLocalTypeData(
-        archetype, LocalTypeDataKind::forAbstractProtocolWitnessTable(protocol),
-        llvm::ConstantInt::get(IGF.IGM.IntPtrTy, 0));
+    auto *adjustment = getCOMExistentialAdjustment(IGF.IGM);
+    setProtocolWitnessTableName(IGF.IGM, adjustment, archetype, protocol);
+    IGF.setUnscopedLocalTypeData(archetype,
+                                 LocalTypeDataKind::forAbstractProtocolWitnessTable(protocol),
+                                 adjustment);
   }
 }
 
