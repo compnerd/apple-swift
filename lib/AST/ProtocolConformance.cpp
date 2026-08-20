@@ -1530,6 +1530,9 @@ static SmallVector<ProtocolConformance *, 2> findSynthesizedConformances(
       trySynthesize(getKnownProtocolKind(ip));
 
     trySynthesize(KnownProtocolKind::BitwiseCopyable);
+
+    if (nominal->getAttrs().hasAttribute<COMAttr>())
+      trySynthesize(KnownProtocolKind::ISwiftObject);
   }
 
   /// Distributed actors can synthesize Encodable/Decodable, so look for those
